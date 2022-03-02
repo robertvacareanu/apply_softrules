@@ -113,8 +113,10 @@ def get_word_embedding(what_type: str) -> WordEmbeddingAverager:
 
 
 m = get_word_embedding('glove-50d')
-print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule(parse_surface("[word=founded]"))))
-print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule(parse_surface("[word=created]"))))
+print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule("[word=founded]")))
+print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule("[word=created]")))
+print(torch.nn.functional.cosine_similarity(m.forward_sentence("was founded by".split(" ")), m.forward_rule("[word=was] [word=founded] [word=by]")))
+print(torch.nn.functional.cosine_similarity(m.forward_sentence("founded by".split(" ")), m.forward_rule("[word=was] [word=founded] [word=by]")))
 
 
 
