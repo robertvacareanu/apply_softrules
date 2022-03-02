@@ -30,11 +30,15 @@ class WordEmbeddingAverager(nn.Module):
     """
         Embed one or a list of rules into a tensor
     """
-    def forward_rule(self, rule: Union[List[AstNode], AstNode]):
+    def forward_rule(self, rule: Union[List[AstNode], AstNode, str, List[str]]):
         if isinstance(rule, AstNode):
             return self.__embed_rule(rule).unsqueeze(dim=0)
-        elif isinstance(rule, List):
+        elif isinstance(rule, List) and isinstance(rule[0], AstNode):
             return self.__embed_rules(rule)
+        elif isinstance(rule, str):
+            return self.__embed_rule(parse_surface(rule)).unsqueeze(dim=0)
+        elif isinstance(rule, List) and isinstance(rule[0], str):
+            return self.__embed_rules([parse_surface(r) for r in rule])
         else:
             raise ValueError("Unrecognized Type")
 
