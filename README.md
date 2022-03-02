@@ -1,2 +1,14 @@
-# rules_softmatch
-Apply rules softly to text
+# Soft Rules
+Compute the matching score between a rule and a sentence. In case of hard matching, the rule 
+```
+[word=was] [word=founded] [word=by]
+```
+matches the sentence
+```
+Microsoft was founded by Bill Gates
+```
+but does not match the sentence
+```
+Microsoft, founded by Bill Gates in his garage, is a very well-known company
+```
+We can notice though that the rule "almost" matches. The goal here is to give a numeric value to "almost".
