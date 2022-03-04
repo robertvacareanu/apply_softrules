@@ -1,5 +1,6 @@
 import json
 from typing import Dict
+import datasets
 
 def convert_tacred_dict(tacred_dict: Dict) -> Dict:
 
