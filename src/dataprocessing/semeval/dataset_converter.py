@@ -3,11 +3,15 @@ from typing import Dict, List
 import nltk
 import numpy as np
 
+"""
+Converts the data from SemEval format into our internal format
+"""
+
 def convert_dict(data: Dict) -> Dict:
     sentence = data['sentence']
-    e1_start = sentence.index("<e1>") + 4
+    e1_start = sentence.index("<e1>") + 4 # offset <e1>, since we do not include it
     e1_end   = sentence.index("</e1>")
-    e2_start = sentence.index("<e2>") + 4
+    e2_start = sentence.index("<e2>") + 4 # offset <e2>, since we do not include it
     e2_end   = sentence.index("</e2>")
 
     # e1_start <..> e1_end <..> e2_start <..> e2_end
@@ -62,3 +66,10 @@ def convert_semeval_dict(semeval_dict: Dict) -> Dict:
         'relation': semeval_dict['relation'],
     }
 
+if __name__ == "__main__":
+    data1 = {'sentence': 'The system as described above has its greatest application in an arrayed <e1>configuration</e1> of antenna <e2>elements</e2>.', 'relation': 3}
+    data2 = {'sentence': 'The system as described above has its greatest application in an <e2>arrayed configuration</e2> of <e1>antenna elements</e1>.', 'relation': 3}
+
+
+    print(convert_semeval_dict(data1))
+    print(convert_semeval_dict(data2))
