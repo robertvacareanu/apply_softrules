@@ -1,0 +1,2 @@
+Notice that TACRED uses inclusive ranges.
+That is, `subj_start` can be 9 and `subj_end` can be 9 as well. This means that the `subj_entity` will be only the token 9. If `subj_start` is 9 and `subj_end` is 10, this means that the `subj_entity` will be tokens 9 and 10.
