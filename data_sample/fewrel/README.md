@@ -3,3 +3,5 @@ FewRel provides the `h` (head) and `t` (tail), corresponding for the two entitie
 - element 2 is the id of the entity (FewRel used WikiData)
 - element 3 is a list containing a single element:
     - element 1 is a list containing the indices of the tokens involved in the entity
+
+Paper can be found at [FewRel1.0](https://aclanthology.org/D18-1514.pdf) and [FewRel2.0](https://aclanthology.org/D19-1649.pdf)
