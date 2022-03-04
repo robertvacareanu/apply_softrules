@@ -18,6 +18,7 @@ class WordEmbeddingAverager(nn.Module):
         weights   = torch.FloatTensor(gensim_model.vectors)
         embedding = nn.Embedding.from_pretrained(torch.cat([weights, weights.mean(dim=0).unsqueeze(dim=0)], dim=0))
         embedding.requires_grad = False
+        embedding.to(device)
 
         self.embedder   = embedding
         self.vocabulary = gensim_model.key_to_index
@@ -112,11 +113,14 @@ def get_word_embedding(what_type: str) -> WordEmbeddingAverager:
     return WordEmbeddingAverager(model)
 
 
-m = get_word_embedding('glove-50d')
-print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule("[word=founded]")))
-print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule("[word=created]")))
-print(torch.nn.functional.cosine_similarity(m.forward_sentence("was founded by".split(" ")), m.forward_rule("[word=was] [word=founded] [word=by]")))
-print(torch.nn.functional.cosine_similarity(m.forward_sentence("founded by".split(" ")), m.forward_rule("[word=was] [word=founded] [word=by]")))
+if __name__ == "__main__":
+    m = get_word_embedding('glove-50d')
+    print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule("[word=founded]")))
+    print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule("[word=created]")))
+    print(torch.nn.functional.cosine_similarity(m.forward_sentence("was founded by".split(" ")), m.forward_rule("[word=was] [word=founded] [word=by]")))
+    print(torch.nn.functional.cosine_similarity(m.forward_sentence("founded by".split(" ")), m.forward_rule("[word=was] [word=founded] [word=by]")))
+
+    # print(torch.nn.functional.cosine_similarity(m.forward_sentence(["founded by".split(" "), ["founded"]]).unsqueeze(-1), m.forward_rule(["[word=was] [word=founded] [word=by]", "[word=was] [word=created] [word=by]", "[word=created] [word=by]"]).unsqueeze(0)))
 
 
 
