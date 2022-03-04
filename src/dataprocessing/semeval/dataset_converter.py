@@ -65,6 +65,7 @@ def convert_semeval_dict(semeval_dict: Dict) -> Dict:
         "e2"      : tokens[e2_start:e2_end],
         'relation': semeval_dict['relation'],
     }
+    
 
 if __name__ == "__main__":
     data1 = {'sentence': 'The system as described above has its greatest application in an arrayed <e1>configuration</e1> of antenna <e2>elements</e2>.', 'relation': 3}

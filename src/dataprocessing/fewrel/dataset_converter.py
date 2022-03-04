@@ -1,9 +1,11 @@
+import json
 from typing import Dict
+
+import datasets
 
 def convert_fewrel_dict(fewrel_dict: Dict) -> Dict:
 
     tokens   = fewrel_dict['tokens']
-    print(fewrel_dict['h'][-1])
     e1_start = fewrel_dict['h'][-1][0][0]
     e1_end   = fewrel_dict['h'][-1][0][-1] + 1
     e2_start = fewrel_dict['t'][-1][0][0]
@@ -19,7 +21,12 @@ def convert_fewrel_dict(fewrel_dict: Dict) -> Dict:
         "e2"      : tokens[e2_start:e2_end],
         'relation': fewrel_dict['relation'],
     }
+    
+def load_dataset_from_jsonl(path):
+    d = datasets.load_dataset('text', data_files=path)
+    d = d.map(lambda x: convert_fewrel_dict(json.loads(x['text'])), batched=False)
 
+    return d
 
 if __name__ == '__main__':
     data1 = {'relation': 'P931', 'tokens': ['Merpati', 'flight', '106', 'departed', 'Jakarta', '(', 'CGK', ')', 'on', 'a', 'domestic', 'flight', 'to', 'Tanjung', 'Pandan', '(', 'TJQ', ')', '.'], 'h': ['tjq', 'Q1331049', [[16]]], 't': ['tanjung pandan', 'Q3056359', [[13, 14]]]}
@@ -28,3 +35,4 @@ if __name__ == '__main__':
 
     print(convert_fewrel_dict(data1))
     print(convert_fewrel_dict(data2))
+    print(load_dataset_from_jsonl("data_sample/fewrel/sample_unrolled.jsonl"))
