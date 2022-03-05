@@ -13,7 +13,7 @@ import torch.nn as nn
     and average their word embedding
 """
 class WordEmbeddingAverager(nn.Module):
-    def __init__(self, gensim_model, device = torch.device('cpu')):
+    def __init__(self, gensim_model, device = torch.device('cpu'), aggregation_operator = lambda x: torch.mean(x, dim=0)):
         super().__init__()
         weights   = torch.FloatTensor(gensim_model.vectors)
         embedding = nn.Embedding.from_pretrained(torch.cat([weights, weights.mean(dim=0).unsqueeze(dim=0)], dim=0))
@@ -24,6 +24,9 @@ class WordEmbeddingAverager(nn.Module):
         self.vocabulary = gensim_model.key_to_index
         self.unk_id     = weights.shape[0]
         self.device     = device
+
+
+        self.aggregation_operator = aggregation_operator
 
     def forward(self, batch):
         return 0
@@ -62,13 +65,13 @@ class WordEmbeddingAverager(nn.Module):
             raise ValueError("This type of embedder works only with simple word constraints. No ORs, ANDs, or WILDCARDS. Only Concatenations")
 
         words = self.__extract_words(rule)
-        return self.embedder(torch.tensor([self.vocabulary.get(word, self.unk_id) for word in words]).to(self.device)).mean(dim=0)
+        return self.aggregation_operator(self.embedder(torch.tensor([self.vocabulary.get(word, self.unk_id) for word in words]).to(self.device)))#.mean(dim=0)
     
     def __embed_rules(self, rules: List[AstNode]):
         return torch.stack([self.__embed_rule(r) for r in rules])
 
     def __embed_sentence(self, words: List[str]):
-        return self.embedder(torch.tensor([self.vocabulary.get(word, self.unk_id) for word in words]).to(self.device)).mean(dim=0)
+        return self.aggregation_operator(self.embedder(torch.tensor([self.vocabulary.get(word, self.unk_id) for word in words]).to(self.device)))#.mean(dim=0)
 
     def __embed_sentences(self, sentences: List[List[str]]):
         return torch.stack([self.__embed_sentence(s) for s in sentences])
@@ -95,7 +98,7 @@ class WordEmbeddingAverager(nn.Module):
             return all([self.__check_simple_constraints_rule(x) for x in node.children()])
 
 
-def get_word_embedding(what_type: str) -> WordEmbeddingAverager:
+def get_word_embedding(what_type: str, **kwargs) -> WordEmbeddingAverager:
     from gensim.models import KeyedVectors
 
     # Map what_type name to parameters
@@ -110,7 +113,7 @@ def get_word_embedding(what_type: str) -> WordEmbeddingAverager:
 
     model = KeyedVectors.load_word2vec_format(**types[what_type])
 
-    return WordEmbeddingAverager(model)
+    return WordEmbeddingAverager(model, **kwargs)
 
 
 if __name__ == "__main__":
