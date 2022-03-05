@@ -17,3 +17,9 @@ We can notice though that the rule "almost" matches. The goal here is to give a 
 The structure is:
 `data_sample` contains a folder corresponding to each dataset supported. The idea is to provide a small file with the format of the dataset to facilitate runs.
 
+
+
+### Installation
+- `odinson-gateway` from [lum-ai](https://github.com/lum-ai/odinson-gateway)
+- `odinson-ruleutils` from [clu-ling](https://github.com/clu-ling/odinson-ruleutils)
+- The rest of the dependencies, as specified in `environment.yml`. Note thet they are standard dependencies, which can be installed from standard channels
