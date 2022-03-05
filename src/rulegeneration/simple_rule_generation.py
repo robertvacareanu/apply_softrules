@@ -2,6 +2,10 @@ from typing import Dict
 from odinson.ruleutils.queryast import *
 from odinson.ruleutils.queryparser import parse_surface
 
+"""
+Escape word if needed.
+The characters that are considered are: {', "}. Otherwise return the word as is
+"""
 def escape_if_needed(word):
     word_copy = word
     chars = [
@@ -14,6 +18,9 @@ def escape_if_needed(word):
 
     return word_copy
 
+"""
+Create a rule using the words in-between the two entities
+"""
 def word_rule(data: Dict) -> AstNode:
     if data['e1_start'] > data['e2_start']:
         return parse_surface(' '.join([f"""[word="{escape_if_needed(x)}"]""" for x in data['tokens'][data['e2_end']:data['e1_start']]]))
