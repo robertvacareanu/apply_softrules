@@ -104,8 +104,11 @@ def get_word_embedding(what_type: str, **kwargs) -> WordEmbeddingAverager:
     # Map what_type name to parameters
     # Mapping is done this way because some files contain no header (otherwise just mapping to path would suffice)
     types = {
-        'glove'    : {'fname': '/data/nlp/models/glove/glove.840B.300d.txt', 'binary': False, 'no_header': True}, #'glove-wiki-gigaword-300',
-        'glove-50d': {'fname': '/data/nlp/models/glove/glove.6B.50d.txt',    'binary': False, 'no_header': True}, #'glove-wiki-gigaword-50',
+        'glove'     : {'fname': '/data/nlp/corpora/softrules/models/glove.840B.300d.txt', 'binary': False, 'no_header': True}, #'glove-wiki-gigaword-300',
+        'glove-50d' : {'fname': '/data/nlp/corpora/softrules/models/glove.6B.50d.txt',    'binary': False, 'no_header': True}, #'glove-wiki-gigaword-50',
+        'glove-100d': {'fname': '/data/nlp/corpora/softrules/models/glove.6B.100d.txt',   'binary': False, 'no_header': True}, #'glove-wiki-gigaword-50',
+        'glove-200d': {'fname': '/data/nlp/corpora/softrules/models/glove.6B.200d.txt',   'binary': False, 'no_header': True}, #'glove-wiki-gigaword-50',
+        'glove-300d': {'fname': '/data/nlp/corpora/softrules/models/glove.840B.300d.txt', 'binary': False, 'no_header': True}, #'glove-wiki-gigaword-50',
     }
 
     if what_type not in types:
