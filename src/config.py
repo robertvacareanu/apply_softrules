@@ -39,9 +39,10 @@ class Config:
         return Config(config)
 
     @staticmethod
-    def parse_args_and_get_config(args):
+    def parse_args_and_get_config():
+        import sys
         parser = get_softrules_argparser()
-        args   = parser.parse_args(args)
+        args   = parser.parse_args(sys.argv[1:])
         args   = vars(args)
 
         config = {}
@@ -57,5 +58,5 @@ class Config:
 
 # python -m src.config
 if __name__ == "__main__":
-    c = Config.parse_args_and_get_config(sys.argv[1:])
+    c = Config.parse_args_and_get_config()
     print(c.config)

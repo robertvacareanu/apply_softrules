@@ -32,10 +32,6 @@ similarity(was, is) = 0.95
 similarity(founded, created) = 0.92
 The similarity score of the rule "[word=is] [word=created] [word=by]" will be 0.95 * 0.92 = 0.874
 """
-def rule_expander(rule: AstNode, similarity_threshold = 0.9) -> List[Union[AstNode, float]]:
-    return []
-
-
 class WordRuleExpander:
     def __init__(self, faiss_index_path, vocab_path, **kwargs):
         self.faiss_index = faiss.read_index(faiss_index_path)
@@ -64,9 +60,7 @@ class WordRuleExpander:
                 vector_to_search = self.average_vector
             vectors_to_search.append(vector_to_search)
         vectors_to_search = np.array(vectors_to_search)
-        # print(vectors_to_search)
-        # print(words)
-        # exit()
+
         (similarities, indices) = self.faiss_index.search(vectors_to_search, k + 1) # + 1 because it includes itself as well (if it finds it)
         cosines = 1 - similarities/2
         for i, c in enumerate(cosines):
@@ -80,38 +74,15 @@ class WordRuleExpander:
                         if similarity > similarity_threshold:
                             expansions[words[i]].append((self.index_to_key[indices[i][j]], similarity))
         
-        print(expansions)
         rule_expansions = [(str(rule), 1.0)]
         for (word, expansion) in expansions.items():
             result = [(r[0].replace(f"word={word}", f"word={e[0]}"), r[1] * e[1]) for r in rule_expansions for e in expansion]
             rule_expansions += result
         rule_expansions = list(set(sorted(rule_expansions, key=lambda x: -x[1])))
-        # print(rule_expansions)
 
         rule_str = str(rule)
-        print([re for re in rule_expansions if re != rule_str])
+        # print([re for re in rule_expansions if re != rule_str])
         return [re[0] for re in rule_expansions if re != rule_str][:k]
-
-    def __expand(self, rule: AstNode, what_constraint: str, with_what: List[str]):
-        if isinstance(rule, FieldConstraint):
-            fc: FieldConstraint = rule
-            
-            x = 0
-        elif isinstance(rule, NotConstraint):
-            x = 0
-        elif isinstance(rule, AndConstraint):
-            x = 0
-        elif isinstance(rule, OrConstraint):
-            x = 0
-        elif isinstance(rule, TokenSurface):
-            x = 0
-        elif isinstance(rule, ConcatSurface):
-            x = 0
-        elif isinstance(rule, OrSurface):
-            x = 0
-        elif isinstance(rule, RepeatSurface):
-            x = 0
-        x = 0
 
     def __extract_words(self, node: AstNode) -> List[str]:
         if type(node) == FieldConstraint:

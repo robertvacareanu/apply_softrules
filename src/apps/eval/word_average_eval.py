@@ -1,14 +1,16 @@
+from typing import List
 import torch
 import torch.nn as nn
 import tqdm 
 
 from src.model.baseline.word_embedding_baseline import get_word_embedding
 from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl
+from src.config import Config
 from collections import defaultdict
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 
-def word_averager(dataset_path: str, rules_path: str):
+def word_averager(dataset_path: str, rules_path: str, thresholds: List[int]):
 
     def word_averager_helper(dataset, rules, no_relation_threshold = 0.8):
         wea              = get_word_embedding('glove-50d')
@@ -49,7 +51,7 @@ def word_averager(dataset_path: str, rules_path: str):
         sentence_embedding = wea.forward_sentence(line['tokens'])#[min(line['e1_end'], line['e2_end']):max(line['e1_start'], line['e2_start'])])
         sentence_embeddings.append((sentence_embedding, line['relation']))
 
-    for threshold in [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 0.999]:
+    for threshold in thresholds:
         print('--------------')
         print(f"Threshold: {threshold}")
         word_averager_helper(sentence_embeddings, tacred_rules, threshold)
@@ -57,4 +59,5 @@ def word_averager(dataset_path: str, rules_path: str):
 
 
 if __name__ == "__main__":
-    word_averager("/data/nlp/corpora/softrules/tacred/processed/dev.jsonl", "/data/nlp/corpora/softrules/tacred/processed/train_rules")
+    config = Config.parse_args_and_get_config().get('word_average_eval')
+    word_averager(config.get('dataset_path'), config.get('rules_path'), config.get('thresholds'))
