@@ -1,0 +1,3 @@
+dev_dataset_path: "/data/nlp/corpora/softrules/tacred/processed/dev.jsonl"
+rules_path      : "/data/nlp/corpora/softrules/tacred/processed/train_rules"
+word_embedding  : 'glove-50d'
