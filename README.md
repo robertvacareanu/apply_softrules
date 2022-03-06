@@ -14,6 +14,8 @@ Microsoft, founded by Bill Gates in his garage, is a very well-known company
 We can notice though that the rule "almost" matches. The goal here is to give a numeric value to "almost".
 
 
+## Code
+
 The structure is:
 - `data_sample` contains a folder corresponding to each dataset supported. The idea is to provide a small file with the format of the dataset to facilitate runs.
 - `src` contains the source code, organized as follows:
