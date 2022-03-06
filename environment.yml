@@ -107,6 +107,7 @@ dependencies:
   - olefile=0.46=py_0
   - openh264=2.1.1=h4ff587b_0
   - openssl=1.1.1l=h7f98852_0
+  - packaging=21.3=pyhd8ed1ab_0
   - pandas=1.3.5=py39h8c16a72_0
   - pcre=8.44=he6710b0_0
   - pillow=8.4.0=py39h5aabda8_0
@@ -129,7 +130,7 @@ dependencies:
   - pytorch-mutex=1.0=cuda
   - pytz=2020.1=py_0
   - pyu2f=0.1.5=pyhd8ed1ab_0
-  - pyyaml=5.4.1=py39h3811e60_0
+  - pyyaml=6.0=py39h3811e60_3
   - qt=5.9.7=h5867ecd_1
   - readline=8.1.2=h7f8727e_1
   - requests=2.27.1=pyhd8ed1ab_0
@@ -174,7 +175,6 @@ dependencies:
     - multiprocess==0.70.12.2
     - networkx==2.6.3
     - odinson-gateway==0.1.0
-    - packaging==21.3
     - py4j==0.10.9.2
     - pyarrow==7.0.0
     - regex==2022.1.18
