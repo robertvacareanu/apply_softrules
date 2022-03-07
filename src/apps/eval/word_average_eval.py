@@ -57,7 +57,7 @@ def word_averager(dataset_path: str, rules_path: str, thresholds: List[int]):
         word_averager_helper(sentence_embeddings, tacred_rules, threshold)
         print('--------------\n\n')
 
-# python -m src.apps.eval.word_average_eval --path config/eval/word_average_baseline.yaml
+# python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/eval/word_average_baseline.yaml
 if __name__ == "__main__":
-    config = Config.parse_args_and_get_config().get('word_average_eval')
-    word_averager(config.get('dataset_path'), config.get('rules_path'), config.get('thresholds'))
+    config = Config.parse_args_and_get_config()##.get('word_average_eval')
+    word_averager(config.get_path('dataset_path'), config.get_path('rules_path'), config.get('thresholds'))

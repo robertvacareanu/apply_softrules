@@ -13,13 +13,18 @@ def create_index(gensim_model, index_save_path, vocab_save_path):
     faiss.write_index(index, index_save_path)
 
 
-# python -m src.apps.faiss_create_index_app --path config/faiss_index_creation.yaml
+# python -m src.apps.faiss_create_index_app --path config/base_config.yaml config/faiss_index_creation.yaml
 if __name__ == "__main__":
     from gensim.models import KeyedVectors
 
-    config = Config.parse_args_and_get_config().get('faiss_create_index_app')
-    gensim_model = KeyedVectors.load_word2vec_format(**config.get('gensim_model'))
-    create_index(gensim_model, config.get('index_save_path'), config.get('vocab_save_path'))
+    config = Config.parse_args_and_get_config()#.get('faiss_create_index_app')
+    glove_dict = {
+        'fname'    : config.get('gensim_model').get_path('fname'),
+        'binary'   : config.get('gensim_model').get('binary'),
+        'no_header': config.get('gensim_model').get('no_header'),
+    }
+    gensim_model = KeyedVectors.load_word2vec_format(**glove_dict)
+    create_index(gensim_model, config.get_path('index_save_path'), config.get_path('vocab_save_path'))
 
 
 
