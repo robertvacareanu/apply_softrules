@@ -1,11 +1,11 @@
-dev_dataset_path   : "/data/nlp/corpora/softrules/tacred/processed/dev.jsonl"
-rules_path         : "/data/nlp/corpora/softrules/tacred/processed/train_rules"
+dev_dataset_path   : "softrules/tacred/processed/dev.jsonl"
+rules_path         : "softrules/tacred/processed/train_rules"
 word_embedding_path: 'glove-50d'
 
 odinson_index      : ""
 
 # Data needed to operate a faiss index. Typically used for word expansion
 faiss_index:
-  faiss_index_path    : "/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_index"
-  faiss_index_vocab   : "/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_vocab"
+  faiss_index_path    : "softrules/faiss_index/glove.6B.50d_index"
+  faiss_index_vocab   : "softrules/faiss_index/glove.6B.50d_vocab"
   total_random_indices: 100000

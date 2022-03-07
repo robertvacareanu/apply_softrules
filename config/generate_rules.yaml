@@ -1,4 +1,3 @@
-generate_rules_app:
-  dataset_path: "/data/nlp/corpora/softrules/tacred/processed/train.jsonl"
-  save_path   : "/data/nlp/corpora/softrules/tacred/processed/train_rules"
-  split_name  : "train"
+dataset_path: "softrules/tacred/processed/train.jsonl"
+save_path   : "softrules/tacred/processed/train_rules"
+split_name  : "train"
