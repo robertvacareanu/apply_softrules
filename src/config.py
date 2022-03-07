@@ -21,7 +21,12 @@ class Config:
             error_str = f"The parameter {param} is not in the config, which contains the following keys: {list(self.config.keys())}.\nThe full config is: {self.config}"
             raise ValueError(error_str)
 
-
+    """
+    Use for path parameters. Useful because it can append a basepath
+    The idea is to specify relative paths as much as possible, and only
+    a single basepath. Then, only the basepath needs to be changed on other
+    systems
+    """
     def get_path(self, param):
         path = self.get(param)
         if isinstance(path, str):
