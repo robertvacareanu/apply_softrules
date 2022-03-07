@@ -78,7 +78,7 @@ class WordRuleExpander:
         rule_expansions = [(str(rule), 1.0)]
         for (word, expansion) in expansions.items():
             # FIXME Note that this ignores the case when the word is escaped or surrounded by quotes.
-            result = [(r[0].replace(f"[word={word}]", f'[word="{escape_if_needed(e[0])}]"'), r[1] * e[1]) for r in rule_expansions for e in expansion]
+            result = [(r[0].replace(f"[word={word}]", f'[word="{escape_if_needed(e[0])}"]'), r[1] * e[1]) for r in rule_expansions for e in expansion]
             rule_expansions += result
         rule_expansions = list(set(sorted(rule_expansions, key=lambda x: -x[1])))
 
