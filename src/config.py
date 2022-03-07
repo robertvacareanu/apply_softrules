@@ -16,7 +16,9 @@ class Config:
     """
     def get(self, param):
         if param in self.config:
-            return self.config[param]
+            result = self.config[param]
+            if isinstance(result, dict):
+                return Config(result, self.basepath)
         else:
             error_str = f"The parameter {param} is not in the config, which contains the following keys: {list(self.config.keys())}.\nThe full config is: {self.config}"
             raise ValueError(error_str)
