@@ -1,3 +1,4 @@
+from src.rulegeneration.simple_rule_generation import escape_if_needed
 from typing import List, Union
 
 import faiss
@@ -49,8 +50,8 @@ class WordRuleExpander:
 
         self.expand_unknown_words = kwargs.get("expand_unknown_words", False)
         
-    def rule_expander(self, rule: AstNode, similarity_threshold = 0.9, k=10) -> List[Union[AstNode, float]]:
-        words = self.__extract_words(rule)
+    def rule_expander(self, rule: AstNode, similarity_threshold = 0.9, k=10) -> List[Union[str, float]]:
+        words = self.extract_words(rule)
         expansions = defaultdict(list)
         vectors_to_search = []
         for w in words:
@@ -76,7 +77,7 @@ class WordRuleExpander:
         
         rule_expansions = [(str(rule), 1.0)]
         for (word, expansion) in expansions.items():
-            result = [(r[0].replace(f"word={word}", f"word={e[0]}"), r[1] * e[1]) for r in rule_expansions for e in expansion]
+            result = [(r[0].replace(f"word={word}", f'word="{escape_if_needed(e[0])}"'), r[1] * e[1]) for r in rule_expansions for e in expansion]
             rule_expansions += result
         rule_expansions = list(set(sorted(rule_expansions, key=lambda x: -x[1])))
 
@@ -84,13 +85,13 @@ class WordRuleExpander:
         # print([re for re in rule_expansions if re != rule_str])
         return [re[0] for re in rule_expansions if re != rule_str][:k]
 
-    def __extract_words(self, node: AstNode) -> List[str]:
+    def extract_words(self, node: AstNode) -> List[str]:
         if type(node) == FieldConstraint:
             # If field constraint return the value
             return [node.value.string]
         else:
             # Flatten the result
-            result = [self.__extract_words(x) for x in node.children()]
+            result = [self.extract_words(x) for x in node.children()]
             return [y for x in result for y in x]
 
 
