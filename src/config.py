@@ -5,7 +5,7 @@ from src.argparser import get_softrules_argparser
 from typing import Union, List
 
 class Config:
-    def __init__(self, config):
+    def __init__(self, config, basepath = ""):
         self.config = config
 
     """
@@ -30,10 +30,7 @@ class Config:
     def get_path(self, param):
         path = self.get(param)
         if isinstance(path, str):
-            if 'basepath' in self.config:
-                return self.config['basepath'] + "/" + path
-            else:
-                return path
+            return self.basepath + "/" + path
         else:
             raise ValueError(f"Is {path} a string? Only strings are supported as paths.")
 
@@ -69,7 +66,7 @@ class Config:
         
         config.update(args)
 
-        return Config(config)
+        return Config(config, args['basepath'])
 
 
 # python -m src.config
