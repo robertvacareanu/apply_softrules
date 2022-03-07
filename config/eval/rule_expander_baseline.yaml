@@ -1,10 +1,10 @@
 rule_expander_baseline:
-  dataset_path: "/data/nlp/corpora/softrules/tacred/processed/dev.jsonl"
-  rules_path  : "/data/nlp/corpora/softrules/tacred/processed/train_rules"
-  index_path  : "/data/nlp/corpora/softrules/odinson_index/tacred/odinson_datadir_dev/index/"
-  faiss_index : 
+  dataset_path    : "/data/nlp/corpora/softrules/tacred/processed/dev.jsonl"
+  rules_path      : "/data/nlp/corpora/softrules/tacred/processed/train_rules"
+  odinson_data_dir: "/data/nlp/corpora/softrules/odinson_index/tacred/odinson_datadir_dev/"
+  max_rule_length : 5
+  faiss_index     : 
     index_path          : "/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_index"
     vocab_path          : "/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_vocab"
     total_random_indices: 100000
 
-    
