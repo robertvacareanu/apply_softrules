@@ -21,6 +21,17 @@ class Config:
             error_str = f"The parameter {param} is not in the config, which contains the following keys: {list(self.config.keys())}.\nThe full config is: {self.config}"
             raise ValueError(error_str)
 
+
+    def get_path(self, param):
+        path = self.get(param)
+        if isinstance(path, str):
+            if 'basepath' in self.config:
+                return self.config['basepath'] + "/" + path
+            else:
+                return path
+        else:
+            raise ValueError(f"Is {path} a string? Only strings are supported as paths.")
+
     """
 
     """
