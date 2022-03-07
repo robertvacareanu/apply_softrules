@@ -6,7 +6,8 @@ from typing import Union, List
 
 class Config:
     def __init__(self, config, basepath = ""):
-        self.config = config
+        self.config   = config
+        self.basepath = basepath
 
     """
     The reason behind accessing the config dictionary through this method is to discourage
@@ -19,6 +20,8 @@ class Config:
             result = self.config[param]
             if isinstance(result, dict):
                 return Config(result, self.basepath)
+            else:
+                return result
         else:
             error_str = f"The parameter {param} is not in the config, which contains the following keys: {list(self.config.keys())}.\nThe full config is: {self.config}"
             raise ValueError(error_str)
@@ -59,16 +62,17 @@ class Config:
         parser = get_softrules_argparser()
         args   = parser.parse_args(sys.argv[1:])
         args   = vars(args)
+        args   = {k:v for (k, v) in args.items() if v is not None}
 
         config = {}
         for path in args['path']:
             with open(path) as f:
                 new_config = yaml.load(f, Loader=yaml.FullLoader)
                 config.update(new_config)
-        
+
         config.update(args)
 
-        return Config(config, args['basepath'])
+        return Config(config, config['basepath'])
 
 
 # python -m src.config
