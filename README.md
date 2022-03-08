@@ -27,7 +27,7 @@ The structure is:
     - `src/rulegeneration` contains the code to generate rules from examples. One such approach can be to just use the words in between the entities. Other approaches include calling 3rd party models to generate rules
 
 ### Internal format
-The datasets supported (`TACRED`TACRED, `FewRel`, `SemEval`, `Few-Shot Tacred`) use different formats. Moreover, the information available across datasets is not the same. For example, `TACRED` has the sentences tokenized and provides the type of the entities. `FewRel` has the sentence tokenized, but does not specify the type of the entities. `SemEval` neither has the sentences tokenized, nor specifies the type of the entities.
+The datasets supported (`TACRED`, `FewRel`, `SemEval`, `Few-Shot Tacred`) use different formats. Moreover, the information available across datasets is not the same. For example, `TACRED` has the sentences tokenized and provides the type of the entities. `FewRel` has the sentence tokenized, but does not specify the type of the entities. `SemEval` neither has the sentences tokenized, nor specifies the type of the entities.
 
 We convert each line (data point, etc) to an internal format which contains:
 - `tokens` - the tokens, tokenized
