@@ -26,7 +26,18 @@ The structure is:
     - `src/model` contains the code for different models, such as baselines (e.g. word averaging) or proposed methods (e.g. transformers)
     - `src/rulegeneration` contains the code to generate rules from examples. One such approach can be to just use the words in between the entities. Other approaches include calling 3rd party models to generate rules
 
+### Internal format
+The datasets supported (`TACRED`TACRED, `FewRel`, `SemEval`, `Few-Shot Tacred`) use different formats. Moreover, the information available across datasets is not the same. For example, `TACRED` has the sentences tokenized and provides the type of the entities. `FewRel` has the sentence tokenized, but does not specify the type of the entities. `SemEval` neither has the sentences tokenized, nor specifies the type of the entities.
 
+We convert each line (data point, etc) to an internal format which contains:
+- `tokens` - the tokens, tokenized
+- `e1_start` - the start of the entity 1
+- `e1_end` - the end of entity 1 (non inclusive)
+- `e2_start` - the start of the entity 1
+- `e2_end` - the end of entity 1 (non inclusive)
+- `e1` - the entity 1 (list of tokens)
+- `e2` - the entity 2 (list of tokens)
+- `relation` - the gold relation
 
 ### Installation
 - `odinson-gateway` from [lum-ai](https://github.com/lum-ai/odinson-gateway)
