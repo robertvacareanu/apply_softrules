@@ -1,4 +1,5 @@
 dataset_path    : "softrules/tacred/processed/dev.jsonl"
+dataset_name    : "tacred"
 rules_path      : "softrules/tacred/processed/train_rules"
 odinson_data_dir: "softrules/odinson_index/tacred/odinson_datadir_dev/"
 odinson_index_dir: "softrules/odinson_index/tacred/odinson_datadir_dev/index"

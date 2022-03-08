@@ -1,6 +1,7 @@
 dev_dataset_path   : "softrules/tacred/processed/dev.jsonl"
 rules_path         : "softrules/tacred/processed/train_rules"
 word_embedding_path: 'glove-50d'
+dataset_name       : "tacred"
 
 odinson_index      : ""
 
