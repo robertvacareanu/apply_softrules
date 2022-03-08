@@ -1,4 +1,6 @@
-dataset_path     : "softrules/tacred/processed/dev.jsonl"
-rules_path       : "softrules/tacred/processed/train_rules"
-odinson_index_dir: "softrules/odinson_index/tacred/odinson_datadir_dev/index"
-dataset_name     : "tacred"
+dataset_path           : "softrules/tacred/processed/dev.jsonl"
+rules_path             : "softrules/tacred/processed/train_rules"
+odinson_index_dir      : "softrules/odinson_index/tacred/odinson_datadir_dev/index"
+dataset_name           : "tacred"
+odinson_doc_file_prefix: "dev"
+no_relation_label      : 'no_relation'

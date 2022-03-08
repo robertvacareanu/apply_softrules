@@ -12,11 +12,11 @@ from odinson.gateway import OdinsonGateway
 """
 Read the generated rules and apply them on the dataset
 """
-def rule_application(dataset_path: str, rules_path: str, dataset_name: str):
+def rule_application(config):
 
-    tacred_dataset = load_dataset_from_jsonl(dataset_path, dataset_name)['train']#.filter(lambda line: line['e1_start'] - line['e2_end'] != 0 and line['e2_start'] - line['e1_end'] != 0)
+    tacred_dataset = load_dataset_from_jsonl(config.get_path('dataset_path'), config.get('dataset_name'))['train']#.filter(lambda line: line['e1_start'] - line['e2_end'] != 0 and line['e2_start'] - line['e1_end'] != 0)
     tacred_rules   = []
-    with open(rules_path) as fin:
+    with open(config.get_path('rules_path')) as fin:
         for line in tqdm.tqdm(fin):
             split = line.split('\t')
             tacred_rules.append((split[1].strip(), split[0].strip()))
@@ -26,6 +26,7 @@ def rule_application(dataset_path: str, rules_path: str, dataset_name: str):
     ee = gw.open_index(config.get_path('odinson_index_dir'))
     doc_to_rules_matched = {}
     print("Apply each rule")
+
     for tr in tqdm.tqdm(tacred_rules):
         result = ee.search(tr[1])
         for doc in result.docs:
@@ -60,4 +61,4 @@ def rule_application(dataset_path: str, rules_path: str, dataset_name: str):
 # python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/eval/rule_application_baseline.yaml
 if __name__ == "__main__":
     config = Config.parse_args_and_get_config()##.get('word_average_eval')
-    rule_application(config.get_path('dataset_path'), config.get_path('rules_path'), config.get('dataset_name'))
+    rule_application(config)
