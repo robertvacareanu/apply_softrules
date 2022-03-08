@@ -1,9 +1,11 @@
 dataset_path    : "softrules/tacred/processed/dev.jsonl"
 rules_path      : "softrules/tacred/processed/train_rules"
 odinson_data_dir: "softrules/odinson_index/tacred/odinson_datadir_dev/"
+odinson_index_dir: "softrules/odinson_index/tacred/odinson_datadir_dev/index"
 max_rule_length : 5
 faiss_index     : 
   index_path          : "softrules/faiss_index/glove.6B.50d_index"
   vocab_path          : "softrules/faiss_index/glove.6B.50d_vocab"
   total_random_indices: 100000
-
+odinson_doc_file_prefix: "dev"
+no_relation_label: 'no_relation'
