@@ -1,8 +1,8 @@
 import json
-from src.dataprocessing.tacred import load_dataset_from_jsonl as tacred_loader
-from src.dataprocessing.fewrel import load_dataset_from_jsonl as fewrel_loader
-from src.dataprocessing.semeval import load_dataset_from_jsonl as semeval_loader
-from src.dataprocessing.tacred_fewshot import load_dataset_from_jsonl as tacred_fewshot_loader
+from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl as tacred_loader
+from src.dataprocessing.fewrel.dataset_converter import load_dataset_from_jsonl as fewrel_loader
+from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl as semeval_loader
+from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl as tacred_fewshot_loader
 
 def from_json_to_jsonl(from_path: str, to_path: str):
     with open(from_path) as fin:
@@ -14,6 +14,7 @@ def from_json_to_jsonl(from_path: str, to_path: str):
             fout.write('\n')
 
 dataset_name_to_reader = {
+    
     'tacred'        : tacred_loader,
     'fewrel'        : fewrel_loader,
     'semeval'       : semeval_loader,

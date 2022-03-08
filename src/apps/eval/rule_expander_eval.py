@@ -44,7 +44,7 @@ from odinson.gateway import OdinsonGateway
 
 
 def rule_expander_eval(config: Config):
-    tacred_dataset = load_dataset_from_jsonl(config.get_path('dataset_path'))['train'].filter(lambda line: line['e1_start'] - line['e2_end'] != 0 and line['e2_start'] - line['e1_end'] != 0)
+    tacred_dataset = load_dataset_from_jsonl(config.get_path('dataset_path'), config.get('dataset_name'))['train'].filter(lambda line: line['e1_start'] - line['e2_end'] != 0 and line['e2_start'] - line['e1_end'] != 0)
     tacred_rules   = []
     wre            = WordRuleExpander(config.get("faiss_index").get_path('index_path'), config.get("faiss_index").get_path('vocab_path'), total_random_indices=config.get("faiss_index").get("total_random_indices"))
     with open(config.get_path('rules_path')) as fin:

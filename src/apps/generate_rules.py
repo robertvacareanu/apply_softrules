@@ -7,7 +7,7 @@ from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
 
 
 def generate_rules(config: Dict):
-    dataset = load_dataset_from_jsonl(config.get_path('dataset_path'))
+    dataset = load_dataset_from_jsonl(config.get_path('dataset_path'), config.get('dataset_name'))
 
     with open(config.get_path('save_path'), 'w+') as fout:
         for line in tqdm.tqdm(dataset[config.get('split_name')]):
