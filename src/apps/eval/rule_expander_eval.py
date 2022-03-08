@@ -1,19 +1,7 @@
-import json
-from odinson.gateway.document import Document
 from odinson.ruleutils.queryparser import parse_surface
-import torch
-import glob
-import torch.nn as nn
 import tqdm 
-import hashlib
-import multiprocessing
-import concurrent
-from concurrent.futures.thread import ThreadPoolExecutor
-from concurrent.futures import ProcessPoolExecutor
-from pathos.pools import ParallelPool
 
-from src.model.baseline.word_embedding_baseline import get_word_embedding
-from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl
+from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
 from src.model.baseline.word_rule_expander import WordRuleExpander
 from src.config import Config
 from collections import defaultdict
@@ -21,37 +9,37 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 
 from odinson.gateway import OdinsonGateway
 
-def helper_function(tuple_l_c):
-    line            = tuple_l_c[0]
-    config          = tuple_l_c[1]
-    tacred_rules    = tuple_l_c[2]
-    md5_to_path_map = tuple_l_c[3]
-    gw              = tuple_l_c[4]
+# def helper_function(tuple_l_c):
+#     line            = tuple_l_c[0]
+#     config          = tuple_l_c[1]
+#     tacred_rules    = tuple_l_c[2]
+#     md5_to_path_map = tuple_l_c[3]
+#     gw              = tuple_l_c[4]
 
-    md5      = hashlib.md5(' '.join(line['tokens']).encode('utf-8')).hexdigest()
-    doc_path = config.get('odinson_data_dir') + '/' + md5_to_path_map[md5]
-    doc      = Document.from_file(doc_path)
-    ee       = gw.open_memory_index([doc])
-    result   = defaultdict(int)
-    for rule in tacred_rules:
-        rule_str = rule[1]
-        # print(rule_str)
-        if ee.search(rule_str).total_hits > 0:
-            result[rule[0]] += 1  
-    return result
+#     md5      = hashlib.md5(' '.join(line['tokens']).encode('utf-8')).hexdigest()
+#     doc_path = config.get('odinson_data_dir') + '/' + md5_to_path_map[md5]
+#     doc      = Document.from_file(doc_path)
+#     ee       = gw.open_memory_index([doc])
+#     result   = defaultdict(int)
+#     for rule in tacred_rules:
+#         rule_str = rule[1]
+#         # print(rule_str)
+#         if ee.search(rule_str).total_hits > 0:
+#             result[rule[0]] += 1  
+#     return result
 
 
-def helper_function2(ee_tacred_rules):
-    ee           = ee_tacred_rules[0]
-    tacred_rules = ee_tacred_rules[1]
+# def helper_function2(ee_tacred_rules):
+#     ee           = ee_tacred_rules[0]
+#     tacred_rules = ee_tacred_rules[1]
 
-    result       = defaultdict(int)
-    for rule in tacred_rules:
-        rule_str = rule[1]
-        # print(rule_str)
-        if ee.search(rule_str).total_hits > 0:
-            result[rule[0]] += 1  
-    return result
+#     result       = defaultdict(int)
+#     for rule in tacred_rules:
+#         rule_str = rule[1]
+#         # print(rule_str)
+#         if ee.search(rule_str).total_hits > 0:
+#             result[rule[0]] += 1  
+#     return result
 
 
 

@@ -3,7 +3,7 @@ from src.config import Config
 import tqdm
 
 from src.rulegeneration.simple_rule_generation import word_rule
-from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl
+from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
 
 
 def generate_rules(config: Dict):

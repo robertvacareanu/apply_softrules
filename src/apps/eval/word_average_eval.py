@@ -4,7 +4,7 @@ import torch.nn as nn
 import tqdm 
 
 from src.model.baseline.word_embedding_baseline import get_word_embedding
-from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl
+from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
 from src.config import Config
 from collections import defaultdict
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
