@@ -4,6 +4,19 @@ from src.dataprocessing.fewrel.dataset_converter import load_dataset_from_jsonl 
 from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl as semeval_loader
 from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl as tacred_fewshot_loader
 
+# Some datasets look like this: {"relation1": [<every item with relation = relation1>], <..>}
+def from_reldict_to_list_of_json(from_path: str, to_path: str):
+    with open(from_path) as fin:
+        data = json.load(fin)
+
+    output_data = []
+    for (relation, data_list) in data.items():
+        for data_point in data_list:
+            output_data.append({'relation': relation, **data_point})
+
+    with open(to_path, 'w+') as fout:
+        json.dump(output_data, fout)
+
 def from_json_to_jsonl(from_path: str, to_path: str):
     with open(from_path) as fin:
         data = json.load(fin)
@@ -26,6 +39,7 @@ def load_dataset_from_jsonl(path: str, dataset_name: str):
         raise ValueError(f"The dataset name ({dataset_name}) is not find in the map, which contains the following keys: {list(dataset_name_to_reader.keys())}")
     return dataset_name_to_reader[dataset_name](path)
 
+# python -m src.dataprocessing.general_dataprocessing
 if __name__ == "__main__":
     # from_json_to_jsonl("data_sample/tacred/sample.json", 'data_sample/tacred/sample.jsonl')
     # from_json_to_jsonl("data_sample/fewrel/sample_unrolled.json", 'data_sample/fewrel/sample_unrolled.jsonl')
