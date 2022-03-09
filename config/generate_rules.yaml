@@ -1,3 +1,4 @@
 dataset_path: "softrules/tacred/processed/train.jsonl"
 save_path   : "softrules/tacred/processed/train_rules"
 split_name  : "train"
+dataset_name: 'tacred'
