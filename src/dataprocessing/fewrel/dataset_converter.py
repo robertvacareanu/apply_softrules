@@ -20,6 +20,9 @@ def convert_fewrel_dict(fewrel_dict: Dict) -> Dict:
         "e1"      : tokens[e1_start:e1_end],
         "e2"      : tokens[e2_start:e2_end],
         'relation': fewrel_dict['relation'],
+        'e1_type' : 'entity',
+        'e2_type' : 'entity',
+
     }
     
 def load_dataset_from_jsonl(path):

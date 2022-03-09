@@ -64,6 +64,8 @@ def convert_semeval_dict(semeval_dict: Dict) -> Dict:
         "e1"      : tokens[e1_start:e1_end],
         "e2"      : tokens[e2_start:e2_end],
         'relation': semeval_dict['relation'],
+        'e1_type' : 'entity',
+        'e2_type' : 'entity',
     }
     
 

@@ -38,6 +38,8 @@ We convert each line (data point, etc) to an internal format which contains:
 - `e1` - the entity 1 (list of tokens)
 - `e2` - the entity 2 (list of tokens)
 - `relation` - the gold relation
+- `e1_type` - type of entity1, if present. `O` otherwise
+- `e2_type` - type of entity2, if present. `O` otherwise
 
 ### Installation
 - `odinson-gateway` from [lum-ai](https://github.com/lum-ai/odinson-gateway)
