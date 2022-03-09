@@ -1,4 +1,4 @@
-from src.rulegeneration.simple_rule_generation import escape_if_needed
+from src.rulegeneration.simple_rule_generation import Rule
 from typing import List, Union
 
 import faiss
@@ -78,7 +78,7 @@ class WordRuleExpander:
         rule_expansions = [(str(rule), 1.0)]
         for (word, expansion) in expansions.items():
             # FIXME Note that this ignores the case when the word is escaped or surrounded by quotes.
-            result = [(r[0].replace(f"[word={word}]", f'[word="{escape_if_needed(e[0])}"]'), r[1] * e[1]) for r in rule_expansions for e in expansion]
+            result = [(r[0].replace(f"[word={word}]", f'[word="{Rule.escape_if_needed(e[0])}"]'), r[1] * e[1]) for r in rule_expansions for e in expansion]
             rule_expansions += result
         rule_expansions = list(set(sorted(rule_expansions, key=lambda x: -x[1])))
 
@@ -96,6 +96,7 @@ class WordRuleExpander:
             return [y for x in result for y in x]
 
 
-
-wre = WordRuleExpander("/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_index", "/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_vocab", total_random_indices=100000)
-wre.rule_expander(parse_surface("[word=city] [word=of] [word=Tucson]"), 0.9)
+# python -m src.model.baseline.word_rule_expander
+if __name__ == "__main__":
+    wre = WordRuleExpander("/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_index", "/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_vocab", total_random_indices=100000)
+    print(wre.rule_expander(parse_surface("[word=city] [word=of] [word=Tucson]"), 0.9))
