@@ -13,7 +13,7 @@ import torch.nn as nn
     and average their word embedding
 """
 class WordEmbeddingAverager(nn.Module):
-    def __init__(self, gensim_model, device = torch.device('cpu'), aggregation_operator = lambda x: torch.mean(x, dim=0)):
+    def __init__(self, gensim_model, device = torch.device('cpu'), aggregation_operator = lambda x: torch.mean(x, dim=0), skip_unknown_words: bool = False):
         super().__init__()
         weights   = torch.FloatTensor(gensim_model.vectors)
         embedding = nn.Embedding.from_pretrained(torch.cat([weights, weights.mean(dim=0).unsqueeze(dim=0)], dim=0))
@@ -27,6 +27,7 @@ class WordEmbeddingAverager(nn.Module):
 
 
         self.aggregation_operator = aggregation_operator
+        self.skip_unknown_words   = skip_unknown_words
 
     def forward(self, batch):
         return 0
@@ -65,13 +66,25 @@ class WordEmbeddingAverager(nn.Module):
             raise ValueError("This type of embedder works only with simple word constraints. No ORs, ANDs, or WILDCARDS. Only Concatenations")
 
         words = self.__extract_words(rule)
-        return self.aggregation_operator(self.embedder(torch.tensor([self.vocabulary.get(word, self.unk_id) for word in words]).to(self.device)))#.mean(dim=0)
+        if self.skip_unknown_words:
+            word_ids = [self.vocabulary[word] for word in words if word in self.vocabulary]
+            if len(word_ids) == 0:
+                word_ids = [self.unk_id]
+        else:
+            word_ids = [self.vocabulary.get(word, self.unk_id) for word in words]
+        return self.aggregation_operator(self.embedder(torch.tensor(word_ids).to(self.device)))#.mean(dim=0)
     
     def __embed_rules(self, rules: List[AstNode]):
         return torch.stack([self.__embed_rule(r) for r in rules])
 
     def __embed_sentence(self, words: List[str]):
-        return self.aggregation_operator(self.embedder(torch.tensor([self.vocabulary.get(word, self.unk_id) for word in words]).to(self.device)))#.mean(dim=0)
+        if self.skip_unknown_words:
+            word_ids = [self.vocabulary[word] for word in words if word in self.vocabulary]
+            if len(word_ids) == 0:
+                word_ids = [self.unk_id]
+        else:
+            word_ids = [self.vocabulary.get(word, self.unk_id) for word in words]
+        return self.aggregation_operator(self.embedder(torch.tensor(word_ids).to(self.device)))#.mean(dim=0)
 
     def __embed_sentences(self, sentences: List[List[str]]):
         return torch.stack([self.__embed_sentence(s) for s in sentences])
@@ -121,10 +134,14 @@ def get_word_embedding(what_type: str, **kwargs) -> WordEmbeddingAverager:
 
 if __name__ == "__main__":
     m = get_word_embedding('glove-50d')
-    print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule("[word=founded]")))
-    print(torch.nn.functional.cosine_similarity(m.forward_sentence("Bill Gates founded Microsoft".split(" ")), m.forward_rule("[word=created]")))
-    print(torch.nn.functional.cosine_similarity(m.forward_sentence("was founded by".split(" ")), m.forward_rule("[word=was] [word=founded] [word=by]")))
-    print(torch.nn.functional.cosine_similarity(m.forward_sentence("founded by".split(" ")), m.forward_rule("[word=was] [word=founded] [word=by]")))
+    sentence1 = ["person", "founded", "organization"]
+    rule1     = "[word=person] [word=founded] [word=organization]"
+    sentence2 = ["organization", "was", "founded", "by", "person"]
+    rule2     = "[word=person] [word=created] [word=organization]"
+    print(torch.nn.functional.cosine_similarity(m.forward_sentence(sentence1), m.forward_rule(rule1)))
+    print(torch.nn.functional.cosine_similarity(m.forward_sentence(sentence1), m.forward_rule(rule2)))
+    print(torch.nn.functional.cosine_similarity(m.forward_sentence(sentence2), m.forward_rule(rule1)))
+    print(torch.nn.functional.cosine_similarity(m.forward_sentence(sentence2), m.forward_rule(rule2)))
 
     # print(torch.nn.functional.cosine_similarity(m.forward_sentence(["founded by".split(" "), ["founded"]]).unsqueeze(-1), m.forward_rule(["[word=was] [word=founded] [word=by]", "[word=was] [word=created] [word=by]", "[word=created] [word=by]"]).unsqueeze(0)))
 
