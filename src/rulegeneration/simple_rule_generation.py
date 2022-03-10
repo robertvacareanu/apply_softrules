@@ -1,3 +1,4 @@
+import dataclasses
 from dataclasses import dataclass
 from typing import Dict, Optional
 from odinson.ruleutils.queryast import *
@@ -5,15 +6,23 @@ from odinson.ruleutils.queryparser import parse_surface
 
 @dataclass
 class Rule:
-    entity1: Optional[str]
-    rule:    str
-    entity2: Optional[str]
+    entity1:  Optional[str]
+    rule:     str
+    entity2:  Optional[str]
+    relation: str
 
     def to_ast(self) -> AstNode:
         if self.entity1 and self.entity2:
             return parse_surface(f"[word={self.entity1}] {self.rule} [word={self.entity2}]")
         else:
             return parse_surface(self.rule)
+
+    def to_dict(self) -> Dict:
+        return dataclasses.asdict(self)
+
+    @staticmethod
+    def from_dict(d):
+        return Rule(d.get('entity1', None), d['rule'], d.get('entity2', None), d['relation'])
 
     """
     Escape word if needed.
@@ -53,16 +62,16 @@ class WordRuleGenerator:
             tokens = data['tokens'][data['e2_end']:data['e1_start']]
             tokens = ' '.join([f"""[word="{Rule.escape_if_needed(x)}"]""" for x in tokens])
             if self.use_entities:
-                rule = Rule(data['e2_type'], tokens, data['e1_type'])# [data['e2_type']] + tokens + [data['e1_type']]
+                rule = Rule(data['e2_type'], tokens, data['e1_type'], data['relation'])# [data['e2_type']] + tokens + [data['e1_type']]
             else:
-                rule = Rule(None, tokens, None)
+                rule = Rule(None, tokens, None, data['relation'])
         else:
             tokens = data['tokens'][data['e1_end']:data['e2_start']]
             tokens = ' '.join([f"""[word="{Rule.escape_if_needed(x)}"]""" for x in tokens])
             if self.use_entities:
-                rule = Rule(data['e1_type'], tokens, data['e2_type'])# [data['e1_type']] + tokens + [data['e2_type']]
+                rule = Rule(data['e1_type'], tokens, data['e2_type'], data['relation'])# [data['e1_type']] + tokens + [data['e2_type']]
             else:
-                rule = Rule(None, tokens, None)
+                rule = Rule(None, tokens, None, data['relation'])
 
         rule.to_ast() # just checking that it compiles; TODO better/cleaner ways?
         return rule

@@ -51,6 +51,9 @@ class WordRuleExpander:
         self.expand_unknown_words = kwargs.get("expand_unknown_words", False)
         
     def rule_expander(self, rule: Rule, similarity_threshold = 0.9, k=10) -> List[Rule]:
+        if len(rule.rule) == 0:
+            return []
+            
         words = self.extract_words(parse_surface(rule.rule))
         expansions = defaultdict(list)
         vectors_to_search = []
@@ -86,7 +89,7 @@ class WordRuleExpander:
         # print([re for re in rule_expansions if re != rule_str])
         result = [re[0] for re in rule_expansions if re != rule_str][:k]
 
-        result = [Rule(rule.entity1, re, rule.entity2) for re in result]
+        result = [Rule(rule.entity1, re, rule.entity2, rule.relation) for re in result]
 
         return result
 
@@ -127,4 +130,4 @@ class WordRuleExpander:
 if __name__ == "__main__":
     wre = WordRuleExpander("/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_index", "/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_vocab", total_random_indices=100000)
     # print(wre.replace_word(parse_surface("[word=city] [word=of] [word=Tucson]"), 'city', 'town'))
-    print(wre.rule_expander(Rule(None, "[word=city] [word=of] [word=Tucson]", None), 0.9))
+    print(wre.rule_expander(Rule(None, "[word=city] [word=of] [word=Tucson]", None, "city"), 0.9))

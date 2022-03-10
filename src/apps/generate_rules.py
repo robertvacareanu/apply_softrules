@@ -1,3 +1,4 @@
+import json
 from typing import Dict
 from src.config import Config
 import tqdm
@@ -14,11 +15,11 @@ def generate_rules(config: Config):
         d.append(l)
 
     with open(config.get_path('save_path'), 'w+') as fout:
-        for line in tqdm.tqdm(d[1805:]):
-            # print(line)
-            if line['e1_start'] - line['e2_end'] != 0 and line['e2_start'] - line['e1_end'] != 0 and line['relation'] != 'no_relation':
-                relation = line['relation']
-                fout.write(f'{wrg.word_rule(line).to_ast()}\t{relation}\n')
+        for line in tqdm.tqdm(d):
+            if line['relation'] != 'no_relation':
+                rule = wrg.word_rule(line)
+                fout.write(json.dumps(rule.to_dict()))
+                fout.write('\n')
     
 # python -m src.apps.generate_rules --path config/base_config.yaml config/generate_rules.yaml
 if __name__ == "__main__":
