@@ -78,7 +78,7 @@ def word_averager(config: Config):
     tacred_dataset = load_dataset_from_jsonl(config.get_path('dataset_path'), config.get('dataset_name'))['train']#.filter(lambda line: line['e1_start'] - line['e2_end'] != 0 and line['e2_start'] - line['e1_end'] != 0)
     tacred_rules   = []
     gensim_model   = KeyedVectors.load_word2vec_format(**glove_dict)
-    wea            = WordEmbeddingAverager(gensim_model, aggregation_operator = lambda x: torch.max(x, dim=0)[0])
+    wea            = WordEmbeddingAverager(gensim_model, aggregation_operator = lambda x: torch.max(x, dim=0)[0], skip_unknown_words=config.get('skip_unknown_words'))
     with open(config.get_path('rules_path')) as fin:
         lines = fin.readlines()
         for line in tqdm.tqdm(lines):

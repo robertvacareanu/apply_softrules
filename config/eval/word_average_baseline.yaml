@@ -9,3 +9,4 @@ gensim_model:
   
 use_full_sentence         : False
 number_of_words_left_right: 0
+skip_unknown_words: True
