@@ -50,8 +50,8 @@ class WordRuleExpander:
 
         self.expand_unknown_words = kwargs.get("expand_unknown_words", False)
         
-    def rule_expander(self, rule: AstNode, similarity_threshold = 0.9, k=10) -> List[Union[str, float]]:
-        words = self.extract_words(rule)
+    def rule_expander(self, rule: Rule, similarity_threshold = 0.9, k=10) -> List[Rule]:
+        words = self.extract_words(parse_surface(rule.rule))
         expansions = defaultdict(list)
         vectors_to_search = []
         for w in words:
@@ -75,17 +75,44 @@ class WordRuleExpander:
                         if similarity > similarity_threshold:
                             expansions[words[i]].append((self.index_to_key[indices[i][j]], similarity))
         
-        rule_expansions = [(str(rule), 1.0)]
+        rule_expansions = [(parse_surface(rule.rule), 1.0)]
         for (word, expansion) in expansions.items():
-            # FIXME Note that this ignores the case when the word is escaped or surrounded by quotes.
-            result = [(r[0].replace(f"[word={word}]", f'[word="{Rule.escape_if_needed(e[0])}"]'), r[1] * e[1]) for r in rule_expansions for e in expansion]
+            result = [(self.replace_word(r[0], word, e[0]), r[1] * e[1]) for r in rule_expansions for e in expansion]
             rule_expansions += result
+        rule_expansions = [(str(re[0]), re[1]) for re in rule_expansions]
         rule_expansions = list(set(sorted(rule_expansions, key=lambda x: -x[1])))
 
-        rule_str = str(rule)
+        rule_str = ' '.join(rule.rule)
         # print([re for re in rule_expansions if re != rule_str])
-        return [re[0] for re in rule_expansions if re != rule_str][:k]
+        result = [re[0] for re in rule_expansions if re != rule_str][:k]
 
+        result = [Rule(rule.entity1, re, rule.entity2) for re in result]
+
+        return result
+
+    def replace_word(self, node: AstNode, word: str, replacement: str) -> AstNode:
+        if isinstance(node, FieldConstraint):
+            if node.name.string == 'word' and node.value.string == word:
+                return FieldConstraint(node.name, ExactMatcher(s = replacement))
+            else:
+                return node
+        elif isinstance(node, NotConstraint):
+            return NotConstraint(self.replace_word(node.constraint, word, replacement))
+        elif isinstance(node, AndConstraint):
+            return AndConstraint(self.replace_word(node.lhs, word, replacement), self.replace_word(node.rhs, word, replacement))
+        elif isinstance(node, OrConstraint):
+            return OrConstraint(self.replace_word(node.lhs, word, replacement), self.replace_word(node.rhs, word, replacement))
+        elif isinstance(node, TokenSurface):
+            return TokenSurface(self.replace_word(node.constraint, word, replacement))
+        elif isinstance(node, ConcatSurface):
+            return ConcatSurface(self.replace_word(node.lhs, word, replacement), self.replace_word(node.rhs, word, replacement))
+        elif isinstance(node, OrSurface):
+            return OrSurface(self.replace_word(node.lhs, word, replacement), self.replace_word(node.rhs, word, replacement))
+        elif isinstance(node, RepeatSurface):
+            return RepeatSurface(self.replace_word(node.c, word, replacement), node.min, node.max)
+        else:
+            raise ValueError(f"Unknown node: {node}")
+        
     def extract_words(self, node: AstNode) -> List[str]:
         if type(node) == FieldConstraint:
             # If field constraint return the value
@@ -99,4 +126,5 @@ class WordRuleExpander:
 # python -m src.model.baseline.word_rule_expander
 if __name__ == "__main__":
     wre = WordRuleExpander("/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_index", "/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_vocab", total_random_indices=100000)
-    print(wre.rule_expander(parse_surface("[word=city] [word=of] [word=Tucson]"), 0.9))
+    # print(wre.replace_word(parse_surface("[word=city] [word=of] [word=Tucson]"), 'city', 'town'))
+    print(wre.rule_expander(Rule(None, "[word=city] [word=of] [word=Tucson]", None), 0.9))
