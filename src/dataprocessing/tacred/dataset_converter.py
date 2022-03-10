@@ -10,19 +10,42 @@ def convert_tacred_dict(tacred_dict: Dict) -> Dict:
     e2_start = tacred_dict['obj_start']
     e2_end   = tacred_dict['obj_end'] + 1
 
-    return {
-        "id"      : tacred_dict['id'],
-        "tokens"  : tokens,
-        "e1_start": e1_start,
-        "e1_end"  : e1_end,
-        "e2_start": e2_start,
-        "e2_end"  : e2_end,
-        "e1"      : tokens[e1_start:e1_end],
-        "e2"      : tokens[e2_start:e2_end],
-        'relation': tacred_dict['relation'],
-        'e1_type' : tacred_dict['subj_type'].lower(),
-        'e2_type' : tacred_dict['obj_type'].lower(),
+    if (e1_start < e2_start < e2_end < e1_end) or (e2_start < e1_start < e1_end < e2_end) or (e1_start < e2_start < e1_end < e2_end) or (e2_start < e1_start < e2_end < e1_end):
+        raise ValueError(f"Overlapping entities in {tacred_dict}")
 
+
+    new_e1_start = min(e1_start, e2_start)
+    new_e1_end   = min(e1_end, e2_end)
+    new_e2_start = max(e1_start, e2_start)
+    new_e2_end   = max(e1_end, e2_end)
+
+    # NOTE these are provided by TACRED
+    if e1_start < e2_start:
+        e1_function = 'head'
+        e2_function = 'tail'
+        e1_type = tacred_dict['subj_type'].lower()
+        e2_type = tacred_dict['obj_type'].lower()
+    else:
+        e1_function = 'tail'
+        e2_function = 'head'
+        e1_type = tacred_dict['obj_type'].lower()
+        e2_type = tacred_dict['subj_type'].lower()
+
+
+    return {
+        "id"         : tacred_dict['id'],
+        "tokens"     : tokens,
+        "e1_start"   : new_e1_start,
+        "e1_end"     : new_e1_end,
+        "e2_start"   : new_e2_start,
+        "e2_end"     : new_e2_end,
+        "e1"         : tokens[new_e1_start:new_e1_end],
+        "e2"         : tokens[new_e2_start:new_e2_end],
+        'relation'   : tacred_dict['relation'],
+        'e1_type'    : e1_type,
+        'e2_type'    : e2_type,
+        'e1_function': e1_function,
+        'e2_function': e2_function,
     }
 
 def load_dataset_from_jsonl(path):
@@ -41,4 +64,6 @@ if __name__ == '__main__':
     # d = datasets.load_dataset('json', data_files='data_sample/tacred/sample.jsonl')
     d = load_dataset_from_jsonl('data_sample/tacred/sample.jsonl')
     print(d)
+    print(d['train'][0])
+    print(d['train'][1])
 

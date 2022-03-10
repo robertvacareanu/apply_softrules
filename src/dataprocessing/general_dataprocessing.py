@@ -27,7 +27,6 @@ def from_json_to_jsonl(from_path: str, to_path: str):
             fout.write('\n')
 
 dataset_name_to_reader = {
-    
     'tacred'        : tacred_loader,
     'fewrel'        : fewrel_loader,
     'semeval'       : semeval_loader,
@@ -41,8 +40,11 @@ def load_dataset_from_jsonl(path: str, dataset_name: str):
 
 # python -m src.dataprocessing.general_dataprocessing
 if __name__ == "__main__":
+    print("main")
     # from_json_to_jsonl("data_sample/tacred/sample.json", 'data_sample/tacred/sample.jsonl')
     # from_json_to_jsonl("data_sample/fewrel/sample_unrolled.json", 'data_sample/fewrel/sample_unrolled.jsonl')
-    from_json_to_jsonl("/data/nlp/corpora/softrules/tacred/train/train.json", "/data/nlp/corpora/softrules/tacred/processed/train.jsonl")
-    from_json_to_jsonl("/data/nlp/corpora/softrules/tacred/dev/dev.json", "/data/nlp/corpora/softrules/tacred/processed/dev.jsonl")
-    from_json_to_jsonl("/data/nlp/corpora/softrules/tacred/test/test.json", "/data/nlp/corpora/softrules/tacred/processed/test.jsonl")
+    # from_json_to_jsonl("/data/nlp/corpora/softrules/tacred/train/train.json", "/data/nlp/corpora/softrules/tacred/processed/train.jsonl")
+    # from_json_to_jsonl("/data/nlp/corpora/softrules/tacred/dev/dev.json", "/data/nlp/corpora/softrules/tacred/processed/dev.jsonl")
+    # from_json_to_jsonl("/data/nlp/corpora/softrules/tacred/test/test.json", "/data/nlp/corpora/softrules/tacred/processed/test.jsonl")
+    # from_reldict_to_list_of_json('/data/nlp/corpora/softrules/fewrel/train/train_wiki.json', '/data/nlp/corpora/softrules/fewrel/processed/train_wiki_processed.json')
+    # from_json_to_jsonl('/data/nlp/corpora/softrules/fewrel/processed/train_wiki_processed.json', '/data/nlp/corpora/softrules/fewrel/processed/train_wiki_processed.jsonl')

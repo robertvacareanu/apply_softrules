@@ -11,18 +11,36 @@ def convert_fewrel_dict(fewrel_dict: Dict) -> Dict:
     e2_start = fewrel_dict['t'][-1][0][0]
     e2_end   = fewrel_dict['t'][-1][0][-1] + 1
 
-    return {
-        "tokens"  : tokens,
-        "e1_start": e1_start,
-        "e1_end"  : e1_end,
-        "e2_start": e2_start,
-        "e2_end"  : e2_end,
-        "e1"      : tokens[e1_start:e1_end],
-        "e2"      : tokens[e2_start:e2_end],
-        'relation': fewrel_dict['relation'],
-        'e1_type' : 'entity',
-        'e2_type' : 'entity',
+    if (e1_start < e2_start < e2_end < e1_end) or (e2_start < e1_start < e1_end < e2_end) or (e1_start < e2_start < e1_end < e2_end) or (e2_start < e1_start < e2_end < e1_end):
+        raise ValueError(f"Overlapping entities in {fewrel_dict}")
 
+
+    new_e1_start = min(e1_start, e2_start)
+    new_e1_end   = min(e1_end, e2_end)
+    new_e2_start = max(e1_start, e2_start)
+    new_e2_end   = max(e1_end, e2_end)
+
+    # NOTE these are provided by FewRel
+    if e1_start < e2_start:
+        e1_function = 'head'
+        e2_function = 'tail'
+    else:
+        e1_function = 'tail'
+        e2_function = 'head'
+
+    return {
+        "tokens"     : tokens,
+        "e1_start"   : new_e1_start,
+        "e1_end"     : new_e1_end,
+        "e2_start"   : new_e2_start,
+        "e2_end"     : new_e2_end,
+        "e1"         : tokens[new_e1_start:new_e1_end],
+        "e2"         : tokens[new_e2_start:new_e2_end],
+        'relation'   : fewrel_dict['relation'],
+        'e1_type'    : 'entity',
+        'e2_type'    : 'entity',
+        'e1_function': e1_function,
+        'e2_function': e2_function,
     }
     
 def load_dataset_from_jsonl(path):
@@ -39,3 +57,4 @@ if __name__ == '__main__':
     print(convert_fewrel_dict(data1))
     print(convert_fewrel_dict(data2))
     print(load_dataset_from_jsonl("data_sample/fewrel/sample_unrolled.jsonl"))
+    

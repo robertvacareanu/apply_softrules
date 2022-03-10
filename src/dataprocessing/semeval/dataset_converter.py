@@ -14,6 +14,9 @@ def convert_dict(data: Dict) -> Dict:
     e2_start = sentence.index("<e2>") + 4 # offset <e2>, since we do not include it
     e2_end   = sentence.index("</e2>")
 
+    if (e1_start < e2_start < e2_end < e1_end) or (e2_start < e1_start < e1_end < e2_end) or (e1_start < e2_start < e1_end < e2_end) or (e2_start < e1_start < e2_end < e1_end):
+        raise ValueError(f"Overlapping entities in {data}")
+
     # e1_start <..> e1_end <..> e2_start <..> e2_end
     if e1_start < e2_start:
         e1_start -= 4         # offset <e1>
@@ -33,6 +36,7 @@ def convert_dict(data: Dict) -> Dict:
     e1_str   = new_sentence[e1_start:e1_end]
     e2_str   = new_sentence[e2_start:e2_end]
 
+    # We know that SemEval specifies them in order
     return {
         "sentence"         : new_sentence,
         "original_sentence": sentence,
@@ -40,9 +44,14 @@ def convert_dict(data: Dict) -> Dict:
         "e1_end"           : e1_end,
         "e2_start"         : e2_start,
         "e2_end"           : e2_end,
-        "e1_str"           : e1_str,
-        "e2_str"           : e2_str,
+        "e1"               : e1_str,
+        "e2"               : e2_str,
         'relation'         : data['relation'],
+        'e1_type'          : 'entity',  # Not provided by the SemEval dataset
+        'e2_type'          : 'entity',  # Not provided by the SemEval dataset
+        'e1_function'      : 'unknown', # Not provided by the SemEval dataset
+        'e2_function'      : 'unknown', # Not provided by the SemEval dataset
+
     }
 
 
@@ -66,6 +75,9 @@ def convert_semeval_dict(semeval_dict: Dict) -> Dict:
         'relation': semeval_dict['relation'],
         'e1_type' : 'entity',
         'e2_type' : 'entity',
+        'e1_function': 'unknown',
+        'e2_function': 'unknown',
+
     }
     
 
