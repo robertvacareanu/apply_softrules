@@ -1,19 +1,22 @@
+import json
 from typing import List
 import torch
 import torch.nn as nn
 import tqdm 
 
-from src.model.baseline.word_embedding_baseline import get_word_embedding
+from src.model.baseline.word_embedding_baseline import WordEmbeddingAverager, get_word_embedding
 from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
 from src.config import Config
-from collections import defaultdict
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
+from src.rulegeneration.simple_rule_generation import Rule
 
-def word_averager(dataset_path: str, rules_path: str, thresholds: List[int], dataset_name: str):
+from gensim.models import KeyedVectors
+
+
+def word_averager(config):
 
     def word_averager_helper(dataset, rules, no_relation_threshold = 0.8):
-        wea              = get_word_embedding('glove-50d')
         rules_embeddings = torch.cat([x[1] for x in rules], dim=0)
 
         # Calculate embeddings
@@ -38,20 +41,28 @@ def word_averager(dataset_path: str, rules_path: str, thresholds: List[int], dat
         print('precision: ', precision_score(gold, pred, average="macro"))
         print('recall: ', recall_score(gold, pred, average="macro"))
 
-    tacred_dataset = load_dataset_from_jsonl(dataset_path, dataset_name)['train']#.filter(lambda line: line['e1_start'] - line['e2_end'] != 0 and line['e2_start'] - line['e1_end'] != 0)
+
+    glove_dict = {
+        'fname'    : config.get('gensim_model').get_path('fname'),
+        'binary'   : config.get('gensim_model').get('binary'),
+        'no_header': config.get('gensim_model').get('no_header'),
+    }
+
+    tacred_dataset = load_dataset_from_jsonl(config.get_path('dataset_path'), config.get('dataset_name'))['train']#.filter(lambda line: line['e1_start'] - line['e2_end'] != 0 and line['e2_start'] - line['e1_end'] != 0)
     tacred_rules   = []
-    wea            = get_word_embedding('glove-50d', aggregation_operator = lambda x: torch.max(x, dim=0)[0])
-    with open(rules_path) as fin:
+    gensim_model   = KeyedVectors.load_word2vec_format(**glove_dict)
+    wea            = WordEmbeddingAverager(gensim_model, aggregation_operator = lambda x: torch.max(x, dim=0)[0])
+    with open(config.get_path('rules_path')) as fin:
         for line in tqdm.tqdm(fin):
-            split = line.split('\t')
-            tacred_rules.append((split[1].strip(), wea.forward_rule(split[0].strip())))
+            rule = Rule.from_dict(json.loads(line))
+            tacred_rules.append((rule.relation, wea.forward_rule(str(rule.to_ast()))))
 
     sentence_embeddings = []
     for line in tqdm.tqdm(tacred_dataset):
         sentence_embedding = wea.forward_sentence(line['tokens'])#[min(line['e1_end'], line['e2_end']):max(line['e1_start'], line['e2_start'])])
         sentence_embeddings.append((sentence_embedding, line['relation']))
 
-    for threshold in thresholds:
+    for threshold in config.get('thresholds'):
         print('--------------')
         print(f"Threshold: {threshold}")
         word_averager_helper(sentence_embeddings, tacred_rules, threshold)
@@ -60,4 +71,4 @@ def word_averager(dataset_path: str, rules_path: str, thresholds: List[int], dat
 # python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/eval/word_average_baseline.yaml
 if __name__ == "__main__":
     config = Config.parse_args_and_get_config()##.get('word_average_eval')
-    word_averager(config.get_path('dataset_path'), config.get_path('rules_path'), config.get('thresholds'), config.get('dataset_name'))
+    word_averager(config)#config.get_path('dataset_path'), config.get_path('rules_path'), config.get('thresholds'), config.get('dataset_name'))
