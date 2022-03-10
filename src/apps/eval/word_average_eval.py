@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import tqdm 
 
+from src.utils import tacred_score
+
 from src.model.baseline.word_embedding_baseline import WordEmbeddingAverager, get_word_embedding
 from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
 from src.config import Config
@@ -75,6 +77,13 @@ def word_averager(config: Config):
         'no_header': config.get('gensim_model').get('no_header'),
     }
 
+    mode_of_application = {
+        'apply_rules_with_threshold': apply_rules_with_threshold,
+        'soft_apply_rules'          : soft_apply_rules,
+    }
+
+    function = mode_of_application[config.get('mode_of_application')]
+
     tacred_dataset = load_dataset_from_jsonl(config.get_path('dataset_path'), config.get('dataset_name'))['train']#.filter(lambda line: line['e1_start'] - line['e2_end'] != 0 and line['e2_start'] - line['e1_end'] != 0)
     tacred_rules   = []
     gensim_model   = KeyedVectors.load_word2vec_format(**glove_dict)
@@ -108,8 +117,9 @@ def word_averager(config: Config):
         sentence_embeddings.append((sentence_embedding, line['relation']))
 
     for threshold in config.get('thresholds'):
-        (gold, pred) = apply_rules_with_threshold(sentence_embeddings, tacred_rules, threshold)
+        (gold, pred) = function(sentence_embeddings, tacred_rules, threshold)
         scores       = [accuracy_score(gold, pred), f1_score(gold, pred, average="micro"), precision_score(gold, pred, average="micro"), recall_score(gold, pred, average="micro"), f1_score(gold, pred, average="macro"), precision_score(gold, pred, average="macro"), recall_score(gold, pred, average="macro")]
+        (p_tacred, r_tacred, f1_tacred) = tacred_score(pred, gold)
         print('--------------')
         print(f"Threshold: {threshold}")
         print('accuracy: ', scores[0])
@@ -121,6 +131,10 @@ def word_averager(config: Config):
         print('f1: ', scores[4])
         print('precision: ', scores[5])
         print('recall: ', scores[6])
+        print('---------------------------------------')
+        print('f1: ', p_tacred)
+        print('precision: ', r_tacred)
+        print('recall: ', f1_tacred)
         print('--------------\n\n')
 
 # python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/eval/word_average_baseline.yaml

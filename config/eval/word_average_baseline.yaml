@@ -9,4 +9,5 @@ gensim_model:
   
 use_full_sentence         : False
 number_of_words_left_right: 0
-skip_unknown_words: True
+skip_unknown_words        : True
+mode_of_application       : "apply_rules_with_threshold"
