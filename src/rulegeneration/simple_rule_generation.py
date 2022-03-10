@@ -58,20 +58,29 @@ class WordRuleGenerator:
         self.use_entities = use_entities
 
     def word_rule(self, data: Dict) -> Rule:
-        if data['e1_start'] > data['e2_start']:
-            tokens = data['tokens'][data['e2_end']:data['e1_start']]
-            tokens = ' '.join([f"""[word="{Rule.escape_if_needed(x)}"]""" for x in tokens])
-            if self.use_entities:
-                rule = Rule(data['e2_type'], tokens, data['e1_type'], data['relation'])# [data['e2_type']] + tokens + [data['e1_type']]
-            else:
-                rule = Rule(None, tokens, None, data['relation'])
+        assert(data['e1_start'] < data['e2_start'])
+        tokens = data['tokens'][data['e1_end']:data['e2_start']]
+        tokens = ' '.join([f"""[word="{Rule.escape_if_needed(x)}"]""" for x in tokens])
+        if self.use_entities:
+            rule = Rule(data['e1_type'], tokens, data['e2_type'], data['relation'])# [data['e1_type']] + tokens + [data['e2_type']]
         else:
-            tokens = data['tokens'][data['e1_end']:data['e2_start']]
-            tokens = ' '.join([f"""[word="{Rule.escape_if_needed(x)}"]""" for x in tokens])
-            if self.use_entities:
-                rule = Rule(data['e1_type'], tokens, data['e2_type'], data['relation'])# [data['e1_type']] + tokens + [data['e2_type']]
-            else:
-                rule = Rule(None, tokens, None, data['relation'])
+            rule = Rule(None, tokens, None, data['relation']) 
+
+        # if data['e1_start'] > data['e2_start']:
+        #     raise ValueError("Shouldn't be here")
+        #     tokens = data['tokens'][data['e2_end']:data['e1_start']]
+        #     tokens = ' '.join([f"""[word="{Rule.escape_if_needed(x)}"]""" for x in tokens])
+        #     if self.use_entities:
+        #         rule = Rule(data['e2_type'], tokens, data['e1_type'], data['relation'])# [data['e2_type']] + tokens + [data['e1_type']]
+        #     else:
+        #         rule = Rule(None, tokens, None, data['relation'])
+        # else:
+        #     tokens = data['tokens'][data['e1_end']:data['e2_start']]
+        #     tokens = ' '.join([f"""[word="{Rule.escape_if_needed(x)}"]""" for x in tokens])
+        #     if self.use_entities:
+        #         rule = Rule(data['e1_type'], tokens, data['e2_type'], data['relation'])# [data['e1_type']] + tokens + [data['e2_type']]
+        #     else:
+        #         rule = Rule(None, tokens, None, data['relation'])
 
         rule.to_ast() # just checking that it compiles; TODO better/cleaner ways?
         return rule
@@ -83,6 +92,7 @@ class WordRuleGenerator:
 Create a rule using the words in-between the two entities
 """
 def word_rule(data: Dict) -> AstNode:
+    exit()
     if data['e1_start'] > data['e2_start']:
         tokens = data['tokens'][data['e2_end']:data['e1_start']]
         return parse_surface(' '.join([f"""[word="{Rule.escape_if_needed(x)}"]""" for x in tokens]))
