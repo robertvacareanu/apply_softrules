@@ -81,7 +81,7 @@ class WordEmbeddingAverager(nn.Module):
         :return     -> return a list of strings, corresponding to the constraints
     """
     def __extract_words(self, node: AstNode) -> List[str]:
-        if type(node) == FieldConstraint:
+        if type(node) == FieldConstraint and node.name.string == "word":
             # If field constraint return the value
             return [node.value.string]
         else:
