@@ -6,3 +6,6 @@ gensim_model:
   fname    : "softrules/models/glove.6B.50d.txt"
   binary   : False
   no_header: True
+  
+use_full_sentence         : False
+number_of_words_left_right: 0
