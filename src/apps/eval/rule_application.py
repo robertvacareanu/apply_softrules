@@ -57,7 +57,7 @@ def rule_application(config):
 
 
 
-# python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/eval/rule_application_baseline.yaml
+# python -m src.apps.eval.rule_application --path config/base_config.yaml config/eval/rule_application_baseline.yaml
 if __name__ == "__main__":
     config = Config.parse_args_and_get_config()##.get('word_average_eval')
     rule_application(config)
