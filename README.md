@@ -17,7 +17,7 @@ We can notice though that the rule "almost" matches. The goal here is to give a 
 ## Code
 
 The structure is:
-- `config` which contains some of the configs used to run different apps. There is one `config/base_config.yaml` which is user-specific. It contains the basepath. In this way the configs from the folder can work without additional modifications
+- `config` which contains some of the configs used to run different apps. There is one `config/base_config.yaml` which is user-specific. It contains the basepath. In this way the configs from the folder can work without additional modifications. Additionally, there is the folder `config/dataset_specifics` which contains information specific to each dataset (e.g. datasets may use different labels for the absence of a relation)
 - `data_sample` contains a folder corresponding to each dataset supported. The idea is to provide a small file with the format of the dataset to facilitate runs.
 - `src` contains the source code, organized as follows:
     - `src/apps` contains some simple runnables. The idea is to be able to take each individual file and run it without much orchestration. For example, a file might generate some baseline results
