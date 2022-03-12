@@ -95,11 +95,14 @@ def get_ees_from_config(gw, config: Config):
         index_muliplication_name = config.get('odinson_index_muliplication_name')
         start                    = config.get('odinson_index_start')
         end                      = config.get('odinson_index_end')
-        ees = [gw.open_index(f"{basepath}/{index_muliplication_name}{i}") for i in range(start, end)]
+        # ees = [gw.open_index(f"{basepath}/{index_muliplication_name}{i}") for i in range(start, end)]
+        ees_paths = [f"{basepath}/{index_muliplication_name}{i}" for i in range(start, end)]
     else:
-        ees = [gw.open_index(config.get_path('odinson_index_dir'))]
+        # ees = [gw.open_index(config.get_path('odinson_index_dir'))]
+        ees_paths = [config.get_path('odinson_index_dir')]
 
-    return ees
+    return ees_paths
+
 
 def split_chunks(l, chunk_size):
     list_size = math.ceil(len(l)/chunk_size)
