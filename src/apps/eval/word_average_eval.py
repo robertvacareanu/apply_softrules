@@ -1,12 +1,12 @@
 import json
-from typing import List
+import random
 import torch
 import torch.nn as nn
 import tqdm 
 
 from src.utils import tacred_score
 
-from src.model.baseline.word_embedding_baseline import WordEmbeddingAverager, get_word_embedding
+from src.model.baseline.word_embedding_baseline import WordEmbeddingAverager
 from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
 from src.config import Config
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score

@@ -1,5 +1,4 @@
 import yaml
-import sys
 
 from src.argparser import get_softrules_argparser
 from typing import Union, List

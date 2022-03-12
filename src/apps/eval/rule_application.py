@@ -2,7 +2,6 @@ from odinson.ruleutils.queryparser import parse_surface
 import tqdm 
 
 from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
-from src.model.baseline.word_rule_expander import WordRuleExpander
 from src.config import Config
 from collections import defaultdict
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
