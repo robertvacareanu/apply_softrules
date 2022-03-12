@@ -38,6 +38,9 @@ class Config:
         else:
             raise ValueError(f"Is {path} a string? Only strings are supported as paths.")
 
+    def contains(self, param):
+        return param in self.config
+
     """
 
     """
