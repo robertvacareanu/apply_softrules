@@ -100,3 +100,8 @@ def get_ees_from_config(gw, config: Config):
         ees = [gw.open_index(config.get_path('odinson_index_dir'))]
 
     return ees
+
+def split_chunks(l, chunk_size):
+    list_size = math.ceil(len(l)/chunk_size)
+    for i in range(0, len(l), list_size):
+        yield l[i:i + list_size]
