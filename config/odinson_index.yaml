@@ -1,0 +1,6 @@
+# odinson_index_dir      : "softrules/odinson_index/tacred/odinson_datadir_dev/index"
+odinson_index_multiplicated: True
+odinson_index_basepath: "softrules/odinson_index/tacred/odinson_datadir_dev/"
+odinson_index_muliplication_name: "index_multiplicated"
+odinson_index_start: 1
+odinson_index_end: 21
