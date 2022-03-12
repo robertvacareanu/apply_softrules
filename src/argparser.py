@@ -5,9 +5,9 @@ import sys
 def word_eval_parser(parent_parser):
     subparser = parent_parser.add_argument_group("word_evaluation")
     subparser.add_argument('--thresholds', nargs='+', type=float)
-    subparser.add_argument('--use-full-sentence', type=str)
-    subparser.add_argument('--number-of-words-left-right', type=str)
-    subparser.add_argument('--skip-unknown-words', type=str)
+    subparser.add_argument('--use-full-sentence', type=bool)
+    subparser.add_argument('--number-of-words-left-right', type=int)
+    subparser.add_argument('--skip-unknown-words', type=bool)
     subparser.add_argument('--mode-of-application', type=str)
 
     return parent_parser
