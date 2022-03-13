@@ -17,6 +17,8 @@ def from_reldict_to_list_of_json(from_path: str, to_path: str):
     with open(to_path, 'w+') as fout:
         json.dump(output_data, fout)
 
+# Go from a list of dictionaries saved with json dump
+# to a file where each line is a json object
 def from_json_to_jsonl(from_path: str, to_path: str):
     with open(from_path) as fin:
         data = json.load(fin)
