@@ -1,7 +1,8 @@
-from collections import Counter
+from collections import Counter, defaultdict
 import math
 
 import sys
+from typing import Dict, List
 
 from src.config import Config
 
@@ -109,3 +110,18 @@ def split_chunks(l, chunk_size):
     list_size = math.ceil(len(l)/chunk_size)
     for i in range(0, len(l), list_size):
         yield l[i:i + list_size]
+
+
+
+
+def combine_result_dictionaries(dictionaries: List[Dict]) -> Dict:
+    result = {}
+    for d in dictionaries:
+        for (doc_name, dict_rel_to_count) in d.items():
+            if doc_name not in result:
+                result[doc_name] = defaultdict(int)
+            
+            for (relation, count) in dict_rel_to_count.items():
+                result[doc_name][relation] += count
+        
+    return result
