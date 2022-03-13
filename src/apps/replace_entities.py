@@ -17,6 +17,10 @@ def replace_entities_with_their_type(config: Config):
             fout.write(' '.join(line))
             fout.write('\n')
     
+"""
+Take a file in the .jsonl format and replace the entities with their type
+If their type is not present, replace them with "entity" (see our internal format in README.md)
+"""
 # python -m src.apps.replace_entities --path config/base_config.yaml config/replace_entities_config.yaml
 if __name__ == "__main__":
     config = Config.parse_args_and_get_config()
