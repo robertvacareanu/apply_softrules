@@ -36,10 +36,11 @@ are the entities (given by every dataset), we replace it to:
 - entity visited entity   (if the entity types are not given)
 """
 def replace_entity_words_with_type(line) -> str:
+    tokens     = line['tokens']
     before_e1  = tokens[:min(line['e1_start'], line['e2_start'])]
     in_between = tokens[min(line['e1_end'], line['e2_end']):max(line['e1_start'], line['e2_start'])]
     after_e2   = tokens[max(line['e1_end'], line['e2_end']):]
-    tokens     = tokens = before_e1 + [line['e1_type']] + in_between + [line['e2_type']] + after_e2
+    tokens     = before_e1 + [line['e1_type']] + in_between + [line['e2_type']] + after_e2
 
     return tokens
 
