@@ -3,6 +3,7 @@ import random
 import torch
 import torch.nn as nn
 import tqdm 
+import pandas as pd
 
 from src.utils import tacred_score
 
@@ -145,7 +146,17 @@ def word_averager(config: Config):
         print('recall: ', r_tacred)
         print('---------------------------------------')
         print("confusion matrix")
-        print(confusion_matrix(gold, pred))
+        print(len(gold), len(pred))
+        labels = list(set(gold))
+        cm     = confusion_matrix(gold, pred, labels = labels)
+        cm_pd  = pd.DataFrame(
+            cm, 
+            index=[f'true:{l}' for l in labels], 
+            columns=[f'pred:{l}' for l in labels]
+        )
+                
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):
+            print(cm_pd)
         print('--------------\n\n')
 
 # python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/dataset_specifics/tacred_specifics.yaml config/eval/word_average_baseline.yaml
