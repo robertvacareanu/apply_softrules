@@ -1,7 +1,9 @@
 
+import json
 from typing import Dict, List
 import nltk
 import numpy as np
+import datasets
 
 """
 Converts the data from SemEval format into our internal format
@@ -79,6 +81,12 @@ def convert_semeval_dict(semeval_dict: Dict) -> Dict:
         'e2_function': 'unknown',
 
     }
+
+def load_dataset_from_jsonl(path):
+    d = datasets.load_dataset('text', data_files=path)
+    d = d.map(lambda x: convert_semeval_dict(json.loads(x['text'])), batched=False)
+
+    return d
     
 
 if __name__ == "__main__":
