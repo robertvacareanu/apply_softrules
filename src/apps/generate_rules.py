@@ -21,7 +21,8 @@ def generate_rules(config: Config):
                 fout.write(json.dumps(rule.to_dict()))
                 fout.write('\n')
     
-# python -m src.apps.generate_rules --path config/base_config.yaml config/generate_rules.yaml
+# python -m src.apps.generate_rules --path config/base_config.yaml config/dataset_specifics/semeval_specifics.yaml config/generate_rules.yaml
+# python -m src.apps.generate_rules --path config/base_config.yaml config/dataset_specifics/tacred_specifics.yaml config/generate_rules.yaml
 if __name__ == "__main__":
     config = Config.parse_args_and_get_config()
     generate_rules(config)
