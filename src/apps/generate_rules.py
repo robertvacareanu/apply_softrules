@@ -16,7 +16,7 @@ def generate_rules(config: Config):
 
     with open(config.get_path('save_path'), 'w+') as fout:
         for line in tqdm.tqdm(d):
-            if line['relation'] != 'no_relation':
+            if line['relation'] != config.get('no_relation_label'):
                 rule = wrg.word_rule(line)
                 fout.write(json.dumps(rule.to_dict()))
                 fout.write('\n')
