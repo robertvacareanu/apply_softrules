@@ -1,8 +1,8 @@
 import json
 from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl as tacred_loader
 from src.dataprocessing.fewrel.dataset_converter import load_dataset_from_jsonl as fewrel_loader
-from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl as semeval_loader
-from src.dataprocessing.tacred.dataset_converter import load_dataset_from_jsonl as tacred_fewshot_loader
+from src.dataprocessing.semeval.dataset_converter import load_dataset_from_jsonl as semeval_loader
+# from src.dataprocessing.tacred_fewshot.dataset_converter import load_dataset_from_jsonl as tacred_fewshot_loader
 
 # Some datasets look like this: {"relation1": [<every item with relation = relation1>], <..>}
 def from_reldict_to_list_of_json(from_path: str, to_path: str):
@@ -48,7 +48,7 @@ dataset_name_to_reader = {
     'tacred'        : tacred_loader,
     'fewrel'        : fewrel_loader,
     'semeval'       : semeval_loader,
-    'tacred_fewshot': tacred_fewshot_loader,
+    'tacred_fewshot': None,
 }
 
 def load_dataset_from_jsonl(path: str, dataset_name: str):
