@@ -9,7 +9,7 @@ from src.utils import tacred_score
 from src.model.baseline.word_embedding_baseline import WordEmbeddingAverager
 from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
 from src.config import Config
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
 
 from src.rulegeneration.simple_rule_generation import Rule
 
@@ -143,6 +143,9 @@ def word_averager(config: Config):
         print('f1: ', f1_tacred)
         print('precision: ', p_tacred)
         print('recall: ', r_tacred)
+        print('---------------------------------------')
+        print("confusion matrix")
+        print(confusion_matrix(gold, pred))
         print('--------------\n\n')
 
 # python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/dataset_specifics/tacred_specifics.yaml config/eval/word_average_baseline.yaml
