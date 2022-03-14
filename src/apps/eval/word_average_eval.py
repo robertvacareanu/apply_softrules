@@ -15,7 +15,7 @@ from src.rulegeneration.simple_rule_generation import Rule
 
 from gensim.models import KeyedVectors
 
-def apply_rules_with_threshold(dataset, rules, no_relation_threshold = 0.8):
+def apply_rules_with_threshold(dataset, rules, no_relation_label, no_relation_threshold = 0.8):
     rules_embeddings = torch.cat([x[1] for x in rules], dim=0)
 
     # Calculate embeddings
@@ -23,7 +23,7 @@ def apply_rules_with_threshold(dataset, rules, no_relation_threshold = 0.8):
     for (sentence_embedding, relation) in dataset:
         cosine_similarities = nn.functional.cosine_similarity(sentence_embedding, rules_embeddings)
         if cosine_similarities.max() < no_relation_threshold:
-            predAndGold.append(("no_relation", relation))
+            predAndGold.append((no_relation_label, relation))
         else:
             predAndGold.append((rules[cosine_similarities.argmax()][0], relation))    
 
@@ -32,7 +32,7 @@ def apply_rules_with_threshold(dataset, rules, no_relation_threshold = 0.8):
 
     return (gold, pred)
 
-def soft_apply_rules(dataset, rules, no_relation_threshold = 0.8):
+def soft_apply_rules(dataset, rules, no_relation_label, no_relation_threshold = 0.8):
     rules_embeddings = torch.cat([x[1] for x in rules], dim=0)
     from collections import defaultdict
     # Calculate embeddings
@@ -40,7 +40,7 @@ def soft_apply_rules(dataset, rules, no_relation_threshold = 0.8):
     pred = []
 
     # predAndGold = []
-    for (sentence_embedding, relation) in tqdm.tqdm(dataset):
+    for (sentence_embedding, relation) in dataset:
         cosine_similarities = nn.functional.cosine_similarity(sentence_embedding, rules_embeddings)
         gold.append(relation)
 
@@ -59,7 +59,7 @@ def soft_apply_rules(dataset, rules, no_relation_threshold = 0.8):
         if len(prediction) > 0 and prediction[0][1] > no_relation_threshold:
             pred.append(prediction[0][0])
         else:
-            pred.append("no_relation")
+            pred.append(no_relation_label)
 
         # print(pred)
         # print(relation)
@@ -117,7 +117,7 @@ def word_averager(config: Config):
         sentence_embeddings.append((sentence_embedding, line['relation']))
 
     for threshold in config.get('thresholds'):
-        (gold, pred) = function(sentence_embeddings, tacred_rules, threshold)
+        (gold, pred) = function(sentence_embeddings, tacred_rules, config.get('no_relation_label'), threshold)
         scores       = [accuracy_score(gold, pred), f1_score(gold, pred, average="micro"), precision_score(gold, pred, average="micro"), recall_score(gold, pred, average="micro"), f1_score(gold, pred, average="macro"), precision_score(gold, pred, average="macro"), recall_score(gold, pred, average="macro")]
         (p_tacred, r_tacred, f1_tacred) = tacred_score(gold, pred)
         print('--------------')
@@ -145,7 +145,7 @@ def word_averager(config: Config):
         print('recall: ', r_tacred)
         print('--------------\n\n')
 
-# python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/eval/word_average_baseline.yaml
+# python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/dataset_specifics/tacred_specifics.yaml config/eval/word_average_baseline.yaml
 if __name__ == "__main__":
     config = Config.parse_args_and_get_config()##.get('word_average_eval')
     word_averager(config)#config.get_path('dataset_path'), config.get_path('rules_path'), config.get('thresholds'), config.get('dataset_name'))
