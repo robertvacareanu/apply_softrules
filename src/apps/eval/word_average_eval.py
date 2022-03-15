@@ -1,5 +1,4 @@
 import json
-import random
 import torch
 import torch.nn as nn
 import tqdm 
@@ -152,16 +151,14 @@ def word_averager(config: Config):
             cm     = confusion_matrix(gold, pred, labels = labels)
             cm_pd  = pd.DataFrame(
                 cm, 
-            cm, 
-                cm, 
-                index=[f'true:{l}' for l in labels], 
-            index=[f'true:{l}' for l in labels], 
                 index=[f'true:{l}' for l in labels], 
                 columns=[f'pred:{l}' for l in labels]
             )
-                    
+            print("#########")
             with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):
                 print(cm_pd)
+            print("#########")
+            print(cm.sum())
         print('--------------\n\n')
 
 # python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/dataset_specifics/tacred_specifics.yaml config/eval/word_average_baseline.yaml

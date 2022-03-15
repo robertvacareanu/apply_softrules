@@ -25,6 +25,7 @@ def generate_rules(config: Config):
 # python -m src.apps.generate_rules --path config/base_config.yaml config/dataset_specifics/tacred_specifics.yaml config/generate_rules.yaml
 if __name__ == "__main__":
     config = Config.parse_args_and_get_config()
+    print(config.config)
     generate_rules(config)
     # generate_rules("/data/nlp/corpora/softrules/tacred/processed/train.jsonl", "/data/nlp/corpora/softrules/tacred/processed/train_rules")
     # d = load_dataset_from_jsonl("/data/nlp/corpora/softrules/tacred/processed/train.jsonl").filter(lambda x: x['relation'] != 'no_relation')
