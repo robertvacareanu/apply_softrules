@@ -3,7 +3,7 @@ from typing import Dict
 from src.config import Config
 import tqdm
 
-from src.rulegeneration.simple_rule_generation import WordRuleGenerator, word_rule
+from src.rulegeneration.simple_rule_generation import WordRuleGenerator
 from src.dataprocessing.general_dataprocessing import load_dataset_from_jsonl
 
 
