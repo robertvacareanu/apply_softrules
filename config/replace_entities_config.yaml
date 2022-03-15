@@ -1,4 +1,4 @@
 dataset_path: "softrules/tacred/processed/dev.jsonl"
-save_path   : "softrules/tacred/processed/dev_replacedentities.jsonl"
+save_path   : "softrules/tacred/processed/dev_replacedentities.txt"
 split_name  : "train"
 dataset_name: 'tacred'
