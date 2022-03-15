@@ -12,7 +12,16 @@ def create_index(gensim_model, index_save_path, vocab_save_path):
         pickle.dump(vocab, fout)
     faiss.write_index(index, index_save_path)
 
-
+"""
+Create a faiss index for the word embeddings model
+Needs to know the necessary parameters for gensim:
+- fname
+- binary
+- no_header
+Additionally, two paths must be given:
+- where to save the index
+- where to save the vocabulary
+"""
 # python -m src.apps.preprocessing.faiss_create_index_app --path config/base_config.yaml config/faiss_index_creation.yaml
 if __name__ == "__main__":
     from gensim.models import KeyedVectors
