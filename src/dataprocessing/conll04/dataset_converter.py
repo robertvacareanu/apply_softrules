@@ -16,26 +16,47 @@ def convert_to_custom_conll04_dict(input_path, save_path):
         relations_in_line = {}
         for r in line['relations']:
             relations_in_line[(r['head'], r['tail'] )] = r['type']
-        for i, e1 in enumerate(line['entities']):
-            for j, e2 in enumerate(line['entities']):
+        for i, head in enumerate(line['entities']):
+            for j, tail in enumerate(line['entities']):
                 if i != j:
-                    id_field = ' '.join(line['tokens']) + str(e1['start']) + str(e1['end']) + str(e2['start']) + str(e2['end'])
+                    if head['start'] < tail['start']:
+                        e1_start    = head['start']
+                        e1_end      = head['end']
+                        e2_start    = tail['start']
+                        e2_end      = tail['end']
+                        e1_type     = head['type']
+                        e2_type     = tail['type']
+                        e1_function = "head"
+                        e2_function = "tail"
+                    else:
+                        e1_start    = tail['start']
+                        e1_end      = tail['end']
+                        e2_start    = head['start']
+                        e2_end      = head['end']
+                        e1_type     = tail['type']
+                        e2_type     = head['type']
+                        e1_function = "tail"
+                        e2_function = "head"
+
+                    id_field = ' '.join(line['tokens']) + str(e1_start) + str(e1_end) + str(e2_start) + str(e2_end)
                     cusotm_id = hashlib.md5(id_field.encode('utf-8')).hexdigest()
+
                     resulting_dict = {
                         "custom_id"  : cusotm_id,
                         "tokens"     : line['tokens'],
-                        "e1_start"   : e1['start'],
-                        "e1_end"     : e1['end'],
-                        "e2_start"   : e2['start'],
-                        "e2_end"     : e2['end'],
-                        "e1"         : line['tokens'][e1['start']:e1['end']],
-                        "e2"         : line['tokens'][e2['start']:e2['end']],
-                        'relation'   : relations_in_line.get((e1['start'], e2['start']), "no_relation"),
-                        'e1_type'    : e1['type'],
-                        'e2_type'    : e2['type'],
-                        'e1_function': 'head',
-                        'e2_function': 'tail',
+                        "e1_start"   : e1_start,
+                        "e1_end"     : e1_end,
+                        "e2_start"   : e2_start,
+                        "e2_end"     : e2_end,
+                        "e1"         : line['tokens'][e1_start:e1_end],
+                        "e2"         : line['tokens'][e2_start:e2_end],
+                        'relation'   : relations_in_line.get((i, j), "no_relation"),
+                        'e1_type'    : e1_type,
+                        'e2_type'    : e2_type,
+                        'e1_function': e1_function,
+                        'e2_function': e2_function,
                     }
+
                     output.append(resulting_dict)
 
     with open(save_path, 'w+') as fout:
@@ -46,6 +67,7 @@ def convert_to_custom_conll04_dict(input_path, save_path):
 
 def load_dataset_from_jsonl(path):
     d = datasets.load_dataset('text', data_files=path)
+    d = d.map(lambda x: json.loads(x['text']), batched=False)
 
     return d
 
