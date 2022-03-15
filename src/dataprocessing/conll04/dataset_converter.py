@@ -19,7 +19,6 @@ def convert_to_custom_conll04_dict(input_path, save_path):
             for j, e2 in enumerate(line['entities']):
                 if i != j:
                     resulting_dict = {
-                        "id"         : 'a',
                         "tokens"     : line['tokens'],
                         "e1_start"   : e1['start'],
                         "e1_end"     : e1['end'],
@@ -35,6 +34,10 @@ def convert_to_custom_conll04_dict(input_path, save_path):
                     }
                     output.append(resulting_dict)
 
+    with open(save_path, 'w+') as fout:
+        for line in output:
+            fout.write(json.dumps(line))
+            fout.write('\n')
 
 
 def load_dataset_from_jsonl(path):
@@ -42,7 +45,7 @@ def load_dataset_from_jsonl(path):
 
     return d
 
-# python -m src.dataprocessing.conll04.dataset_converter.py
+# python -m src.dataprocessing.conll04.dataset_converter
 if __name__ == '__main__':
     # data1 = {'tokens': ['The', 'self-propelled', 'rig', 'Avco', '5', 'was', 'headed', 'to', 'shore', 'with', '14', 'people', 'aboard', 'early', 'Monday', 'when', 'it', 'capsized', 'about', '20', 'miles', 'off', 'the', 'Louisiana', 'coast', ',', 'near', 'Morgan', 'City', ',', 'Lifa', 'said.'], 'entities': [{'type': 'Other', 'start': 19, 'end': 21}, {'type': 'Loc', 'start': 23, 'end': 24}, {'type': 'Loc', 'start': 27, 'end': 29}, {'type': 'Peop', 'start': 30, 'end': 31}], 'relations': [{'type': 'Located_In', 'head': 2, 'tail': 1}], 'orig_id': 2447}
     # data2 = {'tokens': ['Annie', 'Oakley', ',', 'also', 'known', 'as', 'Little', 'Miss', 'Sure', 'Shot', ',', 'was', 'born', 'Phoebe', 'Ann', 'Moses', 'in', 'Willowdell', ',', 'Darke', 'County', ',', 'in', '1860', '.'], 'entities': [{'type': 'Peop', 'start': 0, 'end': 2}, {'type': 'Peop', 'start': 6, 'end': 10}, {'type': 'Peop', 'start': 13, 'end': 16}, {'type': 'Loc', 'start': 17, 'end': 21}], 'relations': [{'type': 'Live_In', 'head': 0, 'tail': 3}, {'type': 'Live_In', 'head': 1, 'tail': 3}, {'type': 'Live_In', 'head': 2, 'tail': 3}], 'orig_id': 5284}
@@ -50,7 +53,7 @@ if __name__ == '__main__':
 
     # print(convert_custom_conll04_dict(data1))
     # print(convert_custom_conll04_dict(data2))
-    print(convert_to_custom_conll04_dict("/data/nlp/corpora/softrules/conll04/conll04_train.json", "/data/nlp/corpora/softrules/conll04/conll04_train_custom.jsonl"))
-    print(convert_to_custom_conll04_dict("/data/nlp/corpora/softrules/conll04/conll04_dev.json", "/data/nlp/corpora/softrules/conll04/conll04_dev_custom.jsonl"))
-    print(convert_to_custom_conll04_dict("/data/nlp/corpora/softrules/conll04/conll04_test.json", "/data/nlp/corpora/softrules/conll04/conll04_test_custom.jsonl"))
+    convert_to_custom_conll04_dict("/data/nlp/corpora/softrules/conll04/conll04_train.json", "/data/nlp/corpora/softrules/conll04/conll04_train_custom.jsonl")
+    convert_to_custom_conll04_dict("/data/nlp/corpora/softrules/conll04/conll04_dev.json", "/data/nlp/corpora/softrules/conll04/conll04_dev_custom.jsonl")
+    convert_to_custom_conll04_dict("/data/nlp/corpora/softrules/conll04/conll04_test.json", "/data/nlp/corpora/softrules/conll04/conll04_test_custom.jsonl")
     
