@@ -125,3 +125,20 @@ def combine_result_dictionaries(dictionaries: List[Dict]) -> Dict:
                 result[doc_name][relation] += count
         
     return result
+
+"""
+Takes as input a path to a file containing sentences separated by new line
+Then, it creates a new file for each sentence and saves it in output_path
+"""
+def split_lines_to_files(input_file: str, output_path, file_basename):
+    import tqdm
+    data = []
+    with open(input_file) as fin:
+        for line in fin:
+            data.append(line)
+    
+    for i, line in tqdm.tqdm(enumerate(data)):
+        with open(f'{output_path}/{file_basename}_{i}.txt') as fout:
+            fout.write(line)
+
+
