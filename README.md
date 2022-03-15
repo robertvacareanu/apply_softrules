@@ -49,3 +49,6 @@ Note: `e1` means the first entity to appear in the text (regardless of its funct
 - `odinson-gateway` from [lum-ai](https://github.com/lum-ai/odinson-gateway)
 - `odinson-ruleutils` from [clu-ling](https://github.com/clu-ling/odinson-ruleutils)
 - The rest of the dependencies, as specified in `environment.yml`. Note thet they are standard dependencies, which can be installed from standard channels
+
+Note: If one of the libraries to be installed from github (`odinson-gateway`, `odinson-ruleutils`) fails due to missing the `setuptools` libraries, just install it with `conda install -c anaconda setuptools`.
+
