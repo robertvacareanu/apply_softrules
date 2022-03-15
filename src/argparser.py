@@ -10,6 +10,7 @@ def word_eval_parser(parent_parser):
     subparser.add_argument('--skip-unknown-words', type=bool)
     subparser.add_argument('--mode-of-application', type=str)
     subparser.add_argument('--rules-path', type=str)
+    subparser.add_argument('--print-confusion-matrix', type=bool)
 
     return parent_parser
 
