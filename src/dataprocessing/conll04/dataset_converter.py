@@ -44,8 +44,8 @@ def load_dataset_from_jsonl(path):
 
 # python -m src.dataprocessing.conll04.dataset_converter.py
 if __name__ == '__main__':
-    # data1 = {'relation': 'P931', 'tokens': ['Merpati', 'flight', '106', 'departed', 'Jakarta', '(', 'CGK', ')', 'on', 'a', 'domestic', 'flight', 'to', 'Tanjung', 'Pandan', '(', 'TJQ', ')', '.'], 'h': ['tjq', 'Q1331049', [[16]]], 't': ['tanjung pandan', 'Q3056359', [[13, 14]]]}
-    # data2 = {'relation': 'P931', 'tokens': ['The', 'name', 'was', 'at', 'one', 'point', 'changed', 'to', 'Nottingham', 'East', 'Midlands', 'Airport', 'so', 'as', 'to', 'include', 'the', 'name', 'of', 'the', 'city', 'that', 'is', 'supposedly', 'most', 'internationally', 'recognisable', ',', 'mainly', 'due', 'to', 'the', 'Robin', 'Hood', 'legend', '.'], 'h': ['east midlands airport', 'Q8977', [[9, 10, 11]]], 't': ['nottingham', 'Q41262', [[8]]]}
+    # data1 = {'tokens': ['The', 'self-propelled', 'rig', 'Avco', '5', 'was', 'headed', 'to', 'shore', 'with', '14', 'people', 'aboard', 'early', 'Monday', 'when', 'it', 'capsized', 'about', '20', 'miles', 'off', 'the', 'Louisiana', 'coast', ',', 'near', 'Morgan', 'City', ',', 'Lifa', 'said.'], 'entities': [{'type': 'Other', 'start': 19, 'end': 21}, {'type': 'Loc', 'start': 23, 'end': 24}, {'type': 'Loc', 'start': 27, 'end': 29}, {'type': 'Peop', 'start': 30, 'end': 31}], 'relations': [{'type': 'Located_In', 'head': 2, 'tail': 1}], 'orig_id': 2447}
+    # data2 = {'tokens': ['Annie', 'Oakley', ',', 'also', 'known', 'as', 'Little', 'Miss', 'Sure', 'Shot', ',', 'was', 'born', 'Phoebe', 'Ann', 'Moses', 'in', 'Willowdell', ',', 'Darke', 'County', ',', 'in', '1860', '.'], 'entities': [{'type': 'Peop', 'start': 0, 'end': 2}, {'type': 'Peop', 'start': 6, 'end': 10}, {'type': 'Peop', 'start': 13, 'end': 16}, {'type': 'Loc', 'start': 17, 'end': 21}], 'relations': [{'type': 'Live_In', 'head': 0, 'tail': 3}, {'type': 'Live_In', 'head': 1, 'tail': 3}, {'type': 'Live_In', 'head': 2, 'tail': 3}], 'orig_id': 5284}
 
 
     # print(convert_custom_conll04_dict(data1))
