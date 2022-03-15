@@ -1,4 +1,5 @@
 import json
+import hashlib
 from typing import Dict
 
 import datasets
@@ -18,7 +19,10 @@ def convert_to_custom_conll04_dict(input_path, save_path):
         for i, e1 in enumerate(line['entities']):
             for j, e2 in enumerate(line['entities']):
                 if i != j:
+                    id_field = ' '.join(line['tokens']) + str(e1['start']) + str(e1['end']) + str(e2['start']) + str(e2['end'])
+                    cusotm_id = hashlib.md5(id_field.encode('utf-8')).hexdigest()
                     resulting_dict = {
+                        "custom_id"  : cusotm_id,
                         "tokens"     : line['tokens'],
                         "e1_start"   : e1['start'],
                         "e1_end"     : e1['end'],

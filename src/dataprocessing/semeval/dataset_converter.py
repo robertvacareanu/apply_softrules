@@ -1,5 +1,6 @@
 
 import json
+import hashlib
 from typing import Dict, List
 import nltk
 import numpy as np
@@ -38,8 +39,13 @@ def convert_dict(data: Dict) -> Dict:
     e1_str   = new_sentence[e1_start:e1_end]
     e2_str   = new_sentence[e2_start:e2_end]
 
+    id_field  = ' '.join(new_sentence) + str(e1_start) + str(e1_end) + str(e2_start) + str(e2_end)
+    custom_id = hashlib.md5(id_field.encode('utf-8')).hexdigest()
+
+
     # We know that SemEval specifies them in order
     return {
+        "custom_id"        : custom_id,
         "sentence"         : new_sentence,
         "original_sentence": sentence,
         "e1_start"         : e1_start,
@@ -96,3 +102,22 @@ if __name__ == "__main__":
 
     print(convert_semeval_dict(data1))
     print(convert_semeval_dict(data2))
+
+    # import datasets
+    # d  = datasets.load_dataset("sem_eval_2010_task_8")
+    # tv = d['train'].train_test_split(test_size=0.1, seed=1)
+    # import json
+    # with open('/data/nlp/corpora/softrules/semeval/train/train.jsonl', 'w+') as fout:
+    #     for line in tv['train']:
+    #         fout.write(json.dumps(line))
+    #         fout.write('\n')
+    # with open('/data/nlp/corpora/softrules/semeval/dev/dev.jsonl', 'w+') as fout:
+    #     for line in tv['test']:
+    #         fout.write(json.dumps(line))
+    #         fout.write('\n')
+    # with open('/data/nlp/corpora/softrules/semeval/test/test.jsonl', 'w+') as fout:
+    #     for line in d['test']:
+    #         fout.write(json.dumps(line))
+    #         fout.write('\n')
+    # print(d)
+    # print(tv)

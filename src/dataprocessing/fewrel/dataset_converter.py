@@ -1,4 +1,5 @@
 import json
+import hashlib
 from typing import Dict
 
 import datasets
@@ -28,7 +29,11 @@ def convert_fewrel_dict(fewrel_dict: Dict) -> Dict:
         e1_function = 'tail'
         e2_function = 'head'
 
+    id_field  = ' '.join(tokens) + str(new_e1_start) + str(new_e1_end) + str(new_e2_start) + str(new_e2_end)
+    custom_id = hashlib.md5(id_field.encode('utf-8')).hexdigest()
+
     return {
+        "custom_id"  : custom_id,
         "tokens"     : tokens,
         "e1_start"   : new_e1_start,
         "e1_end"     : new_e1_end,
