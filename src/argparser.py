@@ -11,6 +11,7 @@ def word_eval_parser(parent_parser):
     subparser.add_argument('--mode-of-application', type=str)
     subparser.add_argument('--rules-path', type=str)
     subparser.add_argument('--print-confusion-matrix', type=bool)
+    subparser.add_argument('--save-path', type=str)
 
     return parent_parser
 
@@ -20,6 +21,8 @@ def dataset_details_parser(parent_parser):
     subparser.add_argument('--dataset-name', type=str)
 
     return parent_parser
+
+
 
 def get_softrules_argparser():
     parser = argparse.ArgumentParser(description='Read paths to config files (last takes precedence). Can also update parameters with command-line parameters', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
