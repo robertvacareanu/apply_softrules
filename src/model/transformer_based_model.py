@@ -9,6 +9,11 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 from collections import namedtuple
 from dataclasses import asdict, dataclass, make_dataclass
 
-class TransformerBasedScorer(pl.LightningModule):
+
+"""
+Input:  (rule, sentence)
+Output: 
+"""
+class TransformerBasedScorer(nn.Module):
     def __init__(self):
         pass
