@@ -1,0 +1,1 @@
+{"entity1": "person", "rule": "[word=\"resigned\"] [word=\"in\"] [word=\"October\"] [word=\"last\"] [word=\"year\"] [word=\"to\"] [word=\"form\"] [word=\"the\"]", "entity2": "organization", "relation": "org:founded_by"}
