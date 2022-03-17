@@ -165,4 +165,5 @@ def word_averager(config: Config):
 # python -m src.apps.eval.word_average_eval --path config/base_config.yaml config/dataset_specifics/semeval_specifics.yaml config/eval/word_average_baseline.yaml
 if __name__ == "__main__":
     config = Config.parse_args_and_get_config()##.get('word_average_eval')
+    print(config.config)
     word_averager(config)#config.get_path('dataset_path'), config.get_path('rules_path'), config.get('thresholds'), config.get('dataset_name'))
