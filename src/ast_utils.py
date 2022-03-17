@@ -1,7 +1,12 @@
 from odinson.ruleutils.queryast import *
 from odinson.ruleutils.queryparser import parse_surface
 
-
+"""
+Apply lambda on the AST
+Filter the nodes based on @see condition
+If a node satisfies @see condition, then we will apply @see operation on it
+No recursive call after the application of the operation
+"""
 def apply_lambda_on_ast(node: AstNode, condition, operation) -> AstNode:
     if isinstance(node, FieldConstraint):
         if condition(node):
