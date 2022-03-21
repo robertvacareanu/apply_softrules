@@ -142,7 +142,7 @@ def split_lines_to_files(input_file: str, output_path, file_basename):
             fout.write(line)
 
 
-
+# TODO alternative ways to store this
 POS_TAGS = [
     'RBR', 
     'CC', 
