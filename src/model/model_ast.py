@@ -49,3 +49,4 @@ def linearize(ast_node: AstNode):
         return [f'Start-RepeatSurface-{suffix}'] + [y for x in ast_node.children() for y in linearize(x)] + [f'End-RepeatSurface-{suffix}']
     else:
         return [f'Start-{node_type}'] + [y for x in ast_node.children() for y in linearize(x)] + [f'End-{node_type}']
+    
