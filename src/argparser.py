@@ -11,7 +11,7 @@ def word_eval_parser(parent_parser):
     subparser.add_argument('--mode-of-application', type=str, help="Specifies the way we apply the rules. For example, we can do a cosine similarity between a sentence and all our rules and add the similarities obtained between a sentence and all the rules for a specific relation. Or we can only take the max similarity rule")
     subparser.add_argument('--rules-path', type=str, help="Where to find the rules")
     subparser.add_argument('--print-confusion-matrix', type=bool, help="Whether to print the confusion matrix or not")
-    subparser.add_argument('--save-path', type=str, type='Where to save whatever is generated here. For example, where to save the rules generated.')
+    subparser.add_argument('--save-path', type=str, help='Where to save whatever is generated here. For example, where to save the rules generated.')
     subparser.add_argument('--no-relation-label', type=str, help="Specifies what is the 'no_relation' label for this dataset")
 
     return parent_parser
