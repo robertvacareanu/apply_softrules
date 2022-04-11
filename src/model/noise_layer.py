@@ -24,8 +24,9 @@ class NoiseLayer(nn.Module):
             return x
             
         output = torch.zeros_like(x)
-        if where:
-            noise = self.mean + self.variance_multiplier * torch.randn(torch.count_nonzero(where))
+        if where is not None:
+            noise = self.mean + self.variance_multiplier * torch.randn((torch.count_nonzero(where), *list(x.shape)[len(list(where.shape)):])).to(x.device)
+
             noise.to(x.device)
             output[where] += noise
         else:
