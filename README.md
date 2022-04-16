@@ -40,8 +40,8 @@ We convert each line (data point, etc) to an internal format which contains:
 - `relation` - the gold relation
 - `e1_type` - type of entity1, if present. `entity` otherwise. For example, `TACRED` specifies (e.g. `LOCATION`, `ORG`, `PERSON`, etc), while `FewRel` does not.
 - `e2_type` - type of entity2, if present. `entity` otherwise. For example, `TACRED` specifies (e.g. `LOCATION`, `ORG`, `PERSON`, etc), while `FewRel` does not.
-- `e1_function` - the function of entity1, if present. `unknown` otherwise. For example, `TACRED` and `FewRel` specify if the entity is `subject` or `head`, while `SemEval` does not.
-- `e2_function` - the function of entity2, if present. `unknown` otherwise. For example, `TACRED` and `FewRel` specify if the entity is `subject` or `head`, while `SemEval` does not.
+- `e1_function` - the function of entity1 ({'head', 'tail'}), if present. `unknown` otherwise. For example, `TACRED` and `FewRel` specify if the entity is `subject` or `head`, while `SemEval` does not.
+- `e2_function` - the function of entity2 ({'head', 'tail'}), if present. `unknown` otherwise. For example, `TACRED` and `FewRel` specify if the entity is `subject` or `head`, while `SemEval` does not.
 
 Note: `e1` means the first entity to appear in the text (regardless of its function). Similarly, `e2` means the second entity to appear in the text, regardless of its function. Some datasets provide the function of the entity (i.e. `head` or `subject`, and `tail` or `object` respectively)
 
