@@ -501,8 +501,6 @@ def get_arg_parser():
     parser.add_argument('--train_dataset',           type=str,                           default=train_dataset_default,               help="train_dataset")
     parser.add_argument('--eval_dataset1',           type=str,                           default=eval_dataset1_default,               help="eval_dataset1")
     parser.add_argument('--eval_dataset2',           type=str,                           default=eval_dataset2_default,               help="eval_dataset2")
-    parser.add_argument('--training_batch_size',     type=int,                           default=32,                                  help="training_batch_siW")
-    parser.add_argument('--eval_batch_size',         type=int,                           default=32,                                  help="eval_batch_size")
 
     return parser
 
@@ -560,7 +558,7 @@ if __name__ == '__main__':
     eval_dataset1  = datasets.load_dataset('json', data_files=args['eval_dataset1'], split="train")
     eval_dataset2  = datasets.load_dataset('json', data_files=args['eval_dataset2'], split="train")
     
-    dl_train  = DataLoader(train_dataset, batch_size=args['training_batch_size'], shuffle=True, num_workers=32)
+    dl_train  = DataLoader(train_dataset, batch_size=args['train_batch_size'], shuffle=True, num_workers=32)
     dl_eval11 = DataLoader(eval_dataset1, batch_size=args['eval_batch_size'], collate_fn = lambda x: x, shuffle=False, num_workers=8)
     dl_eval12 = DataLoader(eval_dataset2, batch_size=1, collate_fn = lambda x: x, shuffle=False, num_workers=2)
 
@@ -580,7 +578,7 @@ if __name__ == '__main__':
         'accelerator'            : 'gpu',
         'devices'                : 1,
         'precision'              : 16,
-        'num_sanity_val_steps'   : 100,
+        'num_sanity_val_steps'   : 500,
         'gradient_clip_val'      : 1.0,
         'gradient_clip_algorithm': "value",
         'logger'                 : logger,
