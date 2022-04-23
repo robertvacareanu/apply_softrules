@@ -202,7 +202,7 @@ class PLWrapper(pl.LightningModule):
     # (ii) (random_rule, good_sentence)
     def aggregate_loss_1(self, batch):
         gr1_gs = self.calculate_loss_gr1_gs(batch, True, True, False)
-        rr_gs  = self.calculate_loss_rr_gs(batch, True, True, False)
+        rr_gs  = self.calculate_loss_rr_gs(batch,  True, True, False)
 
         return (gr1_gs[0] + gr1_gs[1] + rr_gs[0] + rr_gs[1])/4
 
@@ -217,7 +217,7 @@ class PLWrapper(pl.LightningModule):
     def aggregate_loss_3(self, batch):
         gr1_gs = self.calculate_loss_gr1_gs(batch, True, False, True)
         gr2_gs = self.calculate_loss_gr2_gs(batch, True, False, True)
-        rr_gs  = self.calculate_loss_rr_gs(batch, True, False, True)
+        rr_gs  = self.calculate_loss_rr_gs(batch,  True, False, True)
 
         match_loss         = (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
 
@@ -232,7 +232,7 @@ class PLWrapper(pl.LightningModule):
     def aggregate_loss_4(self, batch):
         gr1_gs = self.calculate_loss_gr1_gs(batch, True, True, True)
         gr2_gs = self.calculate_loss_gr2_gs(batch, True, True, True)
-        rr_gs  = self.calculate_loss_rr_gs(batch, True, True, True)
+        rr_gs  = self.calculate_loss_rr_gs(batch,  True, True, True)
 
         match_loss         = (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
         tag_loss           = (gr1_gs[1] + gr2_gs[1] + rr_gs[1])/3
@@ -249,7 +249,7 @@ class PLWrapper(pl.LightningModule):
     def aggregate_loss_5(self, batch):
         gr1_gs = self.calculate_loss_gr1_gs(batch, True, True, True)
         gr2_gs = self.calculate_loss_gr2_gs(batch, True, True, True)
-        rr_gs  = self.calculate_loss_rr_gs(batch, True, False, True)
+        rr_gs  = self.calculate_loss_rr_gs(batch,  True, False, True)
 
         match_loss         = (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
         tag_loss           = (gr1_gs[1] + gr2_gs[1])/2
