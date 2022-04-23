@@ -15,7 +15,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from sklearn.metrics import f1_score, precision_score, recall_score
 from collections import defaultdict, namedtuple
 from dataclasses import asdict, dataclass, make_dataclass
-from src.model.noise_layer import NoiseLayer
 from src.model.util import tokenize_words_and_align_labels
 from src.utils import tacred_score
 from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, ProgressBar, GradientAccumulationScheduler, StochasticWeightAveraging
@@ -474,25 +473,34 @@ def get_callbacks(accumulate_grad):
 
 def get_arg_parser():
     from distutils.util import strtobool
+
+    extra_tokens_default  = ['misc', 'criminal_charge', 'cause_of_death', 'url', 'state_or_province']
+    train_dataset_default = '/data/nlp/corpora/softrules/tacred_fewshot/train/hf_datasets/rules_sentences_pair/train_large.jsonl'
+    eval_dataset1_default = '/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl'
+    eval_dataset2_default = '/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl'
+
     parser = argparse.ArgumentParser(description='CLI Parameters for the (Rule, Sentence) scorer', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--learning_rate',           type=float,                         default=3e-5,                                                                      help='learning rate')
-    parser.add_argument('--model_name',              type=str,                           default='google/bert_uncased_L-4_H-256_A-4',                                       help="model_name")
-    parser.add_argument('--threshold',               type=float,                         default=0.5,                                                                       help="extra_tokens")
-    parser.add_argument('--extra_tokens', nargs='+', type=str,                           default=['misc', 'criminal_charge', 'cause_of_death', 'url', 'state_or_province'], help="threshold")
-    parser.add_argument('--no_relation_label',       type=str,                           default='no_relation',                                                             help="no_relation_label")
-    parser.add_argument('--num_warmup_steps_factor', type=float,                         default=0.2,                                                                       help="num_warmup_steps")
-    parser.add_argument('--step_size_up_factor',     type=float,                         default=0.5,                                                                       help="step_size_up")
-    parser.add_argument('--use_scheduler',           type=lambda x: bool(strtobool(x)),  default=True,                                                                      help="use_scheduler")
-    parser.add_argument('--scheduler_type',          type=str,                           default='cycliclr',                                                                help="scheduler_type")
-    parser.add_argument('--gradient_clip_val',       type=float,                         default=1.0,                                                                       help="gradient_clip_val")
-    parser.add_argument('--gradient_clip_algorithm', type=str,                           default="value",                                                                   help="gradient_clip_algorithm")
-    parser.add_argument('--description',             type=str,                           default=None,                                                                      help="description of the model")
-    parser.add_argument('--validation_style',        type=str,                           default='episode_style',                                                           help="validation_style")
-    parser.add_argument('--loss_fn',                 type=str,                           default='loss1',                                                                   help="loss_fn")
-    parser.add_argument('--accumulate_grad_batches', type=int,                           default=1,                                                                         help="accumulate_grad_batches")
-    parser.add_argument('--train_batch_size',        type=int,                           default=32,                                                                        help="train_batch_size")
-    parser.add_argument('--eval_batch_size',         type=int,                           default=4,                                                                         help="eval_batch_size")
-    parser.add_argument('--max_epochs',              type=int,                           default=5,                                                                         help="max_epochs")
+    parser.add_argument('--learning_rate',           type=float,                         default=3e-5,                                help='learning rate')
+    parser.add_argument('--model_name',              type=str,                           default='google/bert_uncased_L-4_H-256_A-4', help="model_name")
+    parser.add_argument('--threshold',               type=float,                         default=0.5,                                 help="extra_tokens")
+    parser.add_argument('--extra_tokens', nargs='+', type=str,                           default=extra_tokens_default,                help="threshold")
+    parser.add_argument('--no_relation_label',       type=str,                           default='no_relation',                       help="no_relation_label")
+    parser.add_argument('--num_warmup_steps_factor', type=float,                         default=0.2,                                 help="num_warmup_steps")
+    parser.add_argument('--step_size_up_factor',     type=float,                         default=0.5,                                 help="step_size_up")
+    parser.add_argument('--use_scheduler',           type=lambda x: bool(strtobool(x)),  default=True,                                help="use_scheduler")
+    parser.add_argument('--scheduler_type',          type=str,                           default='cycliclr',                          help="scheduler_type")
+    parser.add_argument('--gradient_clip_val',       type=float,                         default=1.0,                                 help="gradient_clip_val")
+    parser.add_argument('--gradient_clip_algorithm', type=str,                           default="value",                             help="gradient_clip_algorithm")
+    parser.add_argument('--description',             type=str,                           default=None,                                help="description of the model")
+    parser.add_argument('--validation_style',        type=str,                           default='episode_style',                     help="validation_style")
+    parser.add_argument('--loss_fn',                 type=str,                           default='loss1',                             help="loss_fn")
+    parser.add_argument('--accumulate_grad_batches', type=int,                           default=1,                                   help="accumulate_grad_batches")
+    parser.add_argument('--train_batch_size',        type=int,                           default=32,                                  help="train_batch_size")
+    parser.add_argument('--eval_batch_size',         type=int,                           default=4,                                   help="eval_batch_size")
+    parser.add_argument('--max_epochs',              type=int,                           default=5,                                   help="max_epochs")
+    parser.add_argument('--train_dataset',           type=str,                           default=train_dataset_default,               help="max_epochs")
+    parser.add_argument('--eval_dataset1',           type=str,                           default=eval_dataset1_default,               help="max_epochs")
+    parser.add_argument('--eval_dataset2',           type=str,                           default=eval_dataset2_default,               help="max_epochs")
 
     return parser
 
@@ -540,15 +548,15 @@ if __name__ == '__main__':
 
     (_, tokenizer) = get_bertlike_model_with_customs(model_name, extra_tokens)
 
-    train_dataset = datasets.load_dataset('json', data_files='/data/nlp/corpora/softrules/tacred_fewshot/train/hf_datasets/rules_sentences_pair/train_large.jsonl').map(lambda examples: prepare_train(examples, tokenizer, max_seq_length=300), batched=True)['train']
+    train_dataset = datasets.load_dataset('json', data_files=args['train_dataset']).map(lambda examples: prepare_train(examples, tokenizer, max_seq_length=300), batched=True)['train']
     train_dataset.set_format(type='torch', columns=[
         'input_ids_gr1_gs', 'attention_mask_gr1_gs', 'token_type_ids_gr1_gs', 'tags_gr1_gs',
         'input_ids_gr2_gs', 'attention_mask_gr2_gs', 'token_type_ids_gr2_gs', 'tags_gr2_gs',
         'input_ids_rr_gs',  'attention_mask_rr_gs',  'token_type_ids_rr_gs', 
     ])
 
-    eval_dataset1  = datasets.load_dataset('json', data_files='/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl', split="train")
-    eval_dataset2  = datasets.load_dataset('json', data_files='/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_5_shots_10K_episodes_3q_seed_160290.jsonl', split="train")
+    eval_dataset1  = datasets.load_dataset('json', data_files=args['eval_dataset1'], split="train")
+    eval_dataset2  = datasets.load_dataset('json', data_files=args['eval_dataset2'], split="train")
     
     dl_train  = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=32)
     dl_eval11 = DataLoader(eval_dataset1, batch_size=8, collate_fn = lambda x: x, shuffle=False, num_workers=8)
