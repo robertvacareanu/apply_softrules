@@ -100,6 +100,11 @@ class PLWrapper(pl.LightningModule):
             'loss5': self.aggregate_loss_5,
         }
         self.loss_aggregator = self.loss_calculation_strategy_map[hyperparameters.get('loss_fn', 'loss1')]
+
+        self.tag_loss_multiplier = hyperparameters.get('tag_loss_multiplier', 1)
+        self.match_loss_multiplier = hyperparameters.get('match_loss_multiplier', 1)
+        self.embedding_loss_multiplier = hyperparameters.get('embedding_loss_multiplier', 1)
+
         print(self.loss_aggregator)
         self.save_hyperparameters()
 
@@ -205,11 +210,11 @@ class PLWrapper(pl.LightningModule):
         gr1_gs = self.calculate_loss_gr1_gs(batch, True, True, False)
         rr_gs  = self.calculate_loss_rr_gs(batch,  True, True, False)
 
-        match_loss = (gr1_gs[0] + rr_gs[0])/2
-        tag_loss   = (gr1_gs[1] + rr_gs[1])/2
+        match_loss = self.match_loss_multiplier * ((gr1_gs[0] + rr_gs[0])/2)
+        tag_loss   = self.tag_loss_multiplier   * ((gr1_gs[1] + rr_gs[1])/2)
 
         self.log('match_loss', match_loss)
-        self.log('tag_loss', tag_loss)
+        self.log('tag_loss',   tag_loss)
 
         return (match_loss + tag_loss)/2
 
@@ -218,7 +223,7 @@ class PLWrapper(pl.LightningModule):
         gr1_gs = self.calculate_loss_gr1_gs(batch, True, False, False)
         rr_gs  = self.calculate_loss_rr_gs(batch,  True, False, False)
 
-        match_loss = (gr1_gs[0] + rr_gs[0])/2
+        match_loss = self.match_loss_multiplier * ((gr1_gs[0] + rr_gs[0])/2)
 
         self.log('match_loss', match_loss)
 
@@ -230,14 +235,14 @@ class PLWrapper(pl.LightningModule):
         gr2_gs = self.calculate_loss_gr2_gs(batch, True, False, True)
         rr_gs  = self.calculate_loss_rr_gs(batch,  True, False, True)
 
-        match_loss         = (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
+        match_loss         = self.match_loss_multiplier * ((gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3)
 
         eps                = self.hyperparameters.get('triplet_loss', 1)
         embedding_loss_pos = F.pairwise_distance(gr1_gs[2], gr2_gs[2], p=2)
         embedding_loss_neg = F.pairwise_distance(gr1_gs[2], rr_gs[2],  p=2)
-        embedding_loss     = F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean()
+        embedding_loss     = self.embedding_loss_multiplier * (F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean())
 
-        self.log('match_loss', match_loss)
+        self.log('match_loss',     match_loss)
         self.log('embedding_loss', embedding_loss)
 
 
@@ -249,13 +254,13 @@ class PLWrapper(pl.LightningModule):
         gr2_gs = self.calculate_loss_gr2_gs(batch, True, True, True)
         rr_gs  = self.calculate_loss_rr_gs(batch,  True, True, True)
 
-        match_loss         = (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
-        tag_loss           = (gr1_gs[1] + gr2_gs[1] + rr_gs[1])/3
+        match_loss         = self.match_loss_multiplier * (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
+        tag_loss           = self.tag_loss_multiplier   * (gr1_gs[1] + gr2_gs[1] + rr_gs[1])/3
 
         eps                = self.hyperparameters.get('triplet_loss', 1)
         embedding_loss_pos = F.pairwise_distance(gr1_gs[2], gr2_gs[2], p=2)
         embedding_loss_neg = F.pairwise_distance(gr1_gs[2], rr_gs[2],  p=2)
-        embedding_loss     = F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean()
+        embedding_loss     = self.embedding_loss_multiplier * (F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean())
 
         self.log('match_loss', match_loss)
         self.log('tag_loss', tag_loss)
@@ -271,13 +276,13 @@ class PLWrapper(pl.LightningModule):
         gr2_gs = self.calculate_loss_gr2_gs(batch, True, True, True)
         rr_gs  = self.calculate_loss_rr_gs(batch,  True, False, True)
 
-        match_loss         = (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
-        tag_loss           = (gr1_gs[1] + gr2_gs[1])/2
+        match_loss         = self.match_loss_multiplier * (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
+        tag_loss           = self.tag_loss_multiplier   * (gr1_gs[1] + gr2_gs[1])/2
 
         eps                = self.hyperparameters.get('triplet_loss', 1)
         embedding_loss_pos = F.pairwise_distance(gr1_gs[2], gr2_gs[2], p=2)
         embedding_loss_neg = F.pairwise_distance(gr1_gs[2], rr_gs[2],  p=2)
-        embedding_loss     = F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean()
+        embedding_loss     = self.embedding_loss_multiplier * (F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean())
         
         self.log('match_loss', match_loss)
         self.log('tag_loss', tag_loss)
