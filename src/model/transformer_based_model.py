@@ -204,14 +204,24 @@ class PLWrapper(pl.LightningModule):
         gr1_gs = self.calculate_loss_gr1_gs(batch, True, True, False)
         rr_gs  = self.calculate_loss_rr_gs(batch,  True, True, False)
 
-        return (gr1_gs[0] + gr1_gs[1] + rr_gs[0] + rr_gs[1])/4
+        match_loss = (gr1_gs[0] + rr_gs[0])/2
+        tag_loss   = (gr1_gs[1] + rr_gs[1])/2
+
+        self.log('match_loss', match_loss)
+        self.log('tag_loss', tag_loss)
+
+        return (match_loss + tag_loss)/2
 
     # Consider the loss only on match_loss
     def aggregate_loss_2(self, batch):
         gr1_gs = self.calculate_loss_gr1_gs(batch, True, False, False)
-        rr_gs  = self.calculate_loss_rr_gs(batch, True, False, False)
+        rr_gs  = self.calculate_loss_rr_gs(batch,  True, False, False)
 
-        return (gr1_gs[0] + rr_gs[0])/2
+        match_loss = (gr1_gs[0] + rr_gs[0])/2
+
+        self.log('match_loss', match_loss)
+
+        return match_loss
         
     # Consider the loss on match_loss and embedding loss
     def aggregate_loss_3(self, batch):
@@ -225,6 +235,10 @@ class PLWrapper(pl.LightningModule):
         embedding_loss_pos = F.pairwise_distance(gr1_gs[2], gr2_gs[2], p=2)
         embedding_loss_neg = F.pairwise_distance(gr1_gs[2], rr_gs[2],  p=2)
         embedding_loss     = F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean()
+
+        self.log('match_loss', match_loss)
+        self.log('embedding_loss', embedding_loss)
+
 
         return (match_loss + embedding_loss)/2
 
@@ -242,6 +256,11 @@ class PLWrapper(pl.LightningModule):
         embedding_loss_neg = F.pairwise_distance(gr1_gs[2], rr_gs[2],  p=2)
         embedding_loss     = F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean()
 
+        self.log('match_loss', match_loss)
+        self.log('tag_loss', tag_loss)
+        self.log('embedding_loss', embedding_loss)
+
+
         return (match_loss + tag_loss + embedding_loss)/3
 
     # Consider the loss on match_loss, tag_loss and embedding loss
@@ -258,6 +277,11 @@ class PLWrapper(pl.LightningModule):
         embedding_loss_pos = F.pairwise_distance(gr1_gs[2], gr2_gs[2], p=2)
         embedding_loss_neg = F.pairwise_distance(gr1_gs[2], rr_gs[2],  p=2)
         embedding_loss     = F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean()
+        
+        self.log('match_loss', match_loss)
+        self.log('tag_loss', tag_loss)
+        self.log('embedding_loss', embedding_loss)
+
 
         return (match_loss + tag_loss + embedding_loss)/3
 
