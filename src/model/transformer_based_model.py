@@ -1,22 +1,26 @@
 # import pytorch_lightning as pl
+import argparse
 from turtle import forward
 import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import datasets
+import numpy as np
 from pytorch_lightning import Trainer
 from torch import nn
 from transformers import BertModel, BertConfig, AdamW, AutoModel, AutoTokenizer
 from transformers import get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup
 from transformers import BertTokenizerFast
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 from sklearn.metrics import f1_score, precision_score, recall_score
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from dataclasses import asdict, dataclass, make_dataclass
 from src.model.noise_layer import NoiseLayer
+from src.model.util import tokenize_words_and_align_labels
 from src.utils import tacred_score
-from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, ProgressBar, GradientAccumulationScheduler
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, ProgressBar, GradientAccumulationScheduler, StochasticWeightAveraging
 from pytorch_lightning.loggers import TensorBoardLogger
+from torch.functional import F
 
 @dataclass
 class TransformerBasedScorerOutput:
@@ -24,17 +28,15 @@ class TransformerBasedScorerOutput:
     Output type of [`TransformerBasedScorer`].
 
     Args:
-        start_logits            (`torch.FloatTensor` of shape `(batch_size, sequence_length, 1)`):
+        tag_logits            (`torch.FloatTensor` of shape `(batch_size, sequence_length, 1)`):
             Prediction scores of the model for start token (scores for each vocabulary token before SoftMax).
-        end_logits              (`torch.FloatTensor` of shape `(batch_size, sequence_length, 1)`):
-            Prediction scores of the model for end token (scores for each vocabulary token before SoftMax).
         match_prediction_logits (`torch.FloatTensor` of shape `(batch_size, 1)`):
             Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
     """
 
-    start_logits           : torch.FloatTensor = None
-    end_logits             : torch.FloatTensor = None
-    match_prediction_logits: torch.FloatTensor = None
+    tag_logits             : Optional[torch.FloatTensor] = None
+    match_prediction_logits: Optional[torch.FloatTensor] = None
+    cls_embedding          : Optional[torch.FloatTensor] = None
 
 
 
@@ -43,142 +45,308 @@ Input:  (rule, sentence)
 Output: 
 """
 class TransformerBasedScorer(nn.Module):
-    def __init__(self, model, tokenizer):
-        super().__init__()
-        self.model           = model
-        self.tokenizer       = tokenizer
-
-        # Yes, they can be merged into nn.Linear(self.model.config.hidden_size, 2)
-        self.start_predictor = nn.Linear(self.model.config.hidden_size, 1)
-        self.end_predictor   = nn.Linear(self.model.config.hidden_size, 1)
-        
-        self.match_predictor = nn.Linear(self.model.config.hidden_size, 1)
-
-    def forward(
-        self,
-        input_ids,
-        attention_mask,
-        token_type_ids,
-    ) -> TransformerBasedScorerOutput:
-        embeddings = self.model(input_ids, attention_mask, token_type_ids)
-        match_logits = self.match_predictor(embeddings.pooler_output)
-        start_logits = self.start_predictor(embeddings.last_hidden_state)
-        end_logits = self.end_predictor(embeddings.last_hidden_state)
-        return TransformerBasedScorerOutput(start_logits, end_logits, match_logits)
-
-
-"""
-We want to add some noise, at some given positions
-But Huggingface's transformers are handling everything between the tensor with the
-token ids and the final hidden layers (i.e. mapping ids to embeddings, etc)
-But the forward method allows to give `inputs_embeds`. But, for example, BERT
-constructs the final embedding for token t1 as:
-emb(t1) = token_emb(t1) + pos_emb(t1) + token_type_emb(t1)
-If you pass `input_embeds`, then the embedding for token t1 is calcualted as:
-emb(t1) = input_embeds + pos_emb(t1) + token_type_emb(t1)
-
-Therefore, the point is:
-    1. you need to call `model.get_input_embeddings()` to obtain the embedding layer for the tokens
-    2. embed
-    3. do the changes you want on those
-    4. call forward with your `input_embeds`
-
-"""
-class NoisyTransformerBasedScorer(nn.Module):
     def __init__(self, model):
         super().__init__()
-        self.model       = model
+        self.model           = model
 
-        self.noisy_layer = NoiseLayer()
-        self.wte         = self.model.get_input_embeddings()
-
-        # Yes, they can be merged into nn.Linear(self.model.config.hidden_size, 2)
-        self.start_predictor = nn.Linear(self.model.config.hidden_size, 1)
-        self.end_predictor   = nn.Linear(self.model.config.hidden_size, 1)
-
+        self.tag_predictor   = nn.Linear(self.model.config.hidden_size, 2)
+        
         self.match_predictor = nn.Linear(self.model.config.hidden_size, 1)
-
-        self.cel = nn.BCEWithLogitsLoss()
-
 
     def forward(
         self,
         input_ids,
         attention_mask,
         token_type_ids,
-        where_to_add_noise: Optional[torch.tensor] = None
+        return_tag_logits: bool = True,
+        return_match_logits: bool = True,
+        return_cls_embedding: bool = False,
+
     ) -> TransformerBasedScorerOutput:
+        embeddings = self.model(input_ids, attention_mask, token_type_ids)
 
-        inputs_embeds      = self.wte(input_ids)
-        noisy_input_embeds = self.noisy_layer(inputs_embeds, where_to_add_noise)
-        # embeddings         = self.model(inputs_embeds=noisy_input_embeds, attention_mask=attention_mask, token_type_ids=token_type_ids)
-        embeddings         = self.model(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
-        match_logits       = self.match_predictor(embeddings.pooler_output)
-        start_logits       = self.start_predictor(embeddings.last_hidden_state)
-        end_logits         = self.end_predictor(embeddings.last_hidden_state)
+        cls_embedding = embeddings.last_hidden_state[:,0,:]
+
+        output_tag_logits              = None
+        output_match_prediction_logits = None
+        output_cls_embedding           = None
+
+        if return_tag_logits:
+            output_tag_logits   = self.tag_predictor(embeddings.last_hidden_state)
+        if return_match_logits:
+            output_match_prediction_logits = self.match_predictor(cls_embedding)
+        if return_cls_embedding:
+            output_cls_embedding = cls_embedding
         
-        return TransformerBasedScorerOutput(start_logits, end_logits, match_logits)
-
-    # """
-    # Similar to forward, just that it does not require the parameters to be tokenized
-    # """
-    # def forward_rules_sentences(self, rules: str, sentences: str) -> TransformerBasedScorerOutput:
-    #     tokenized = tokenizer(rules, sentences, return_tensors='pt', padding=True)
-    #     output = self.forward(**{k:v.to(self.device) for (k,v) in tokenized.items()})
-
-    #     return output
-
+        return TransformerBasedScorerOutput(output_tag_logits, output_match_prediction_logits, output_cls_embedding)
 
 
 class PLWrapper(pl.LightningModule):
-    def __init__(self, model_name='google/bert_uncased_L-2_H-128_A-2', threshold = 0.5, no_relation_label = 'no_relation') -> None:
+    def __init__(self, hyperparameters) -> None:
         super().__init__()
-        (model, tokenizer)     = get_bertlike_model_with_customs(model_name, [])
-        self.model             = NoisyTransformerBasedScorer(model)
+        self.hyperparameters   = hyperparameters
+        (model, tokenizer)     = get_bertlike_model_with_customs(hyperparameters.get('model_name'), hyperparameters.get('extra_tokens', []))
+        self.model             = TransformerBasedScorer(model)
         self.tokenizer         = tokenizer
         self.sigmoid           = nn.Sigmoid()
-        self.cel               = nn.BCEWithLogitsLoss()
-        self.threshold         = threshold
-        self.no_relation_label = no_relation_label
+        self.cel               = nn.CrossEntropyLoss()
+        self.bce               = nn.BCEWithLogitsLoss()
+        self.threshold         = hyperparameters.get('threshold')
+        self.no_relation_label = hyperparameters.get('no_relation_label')
+        self.loss_calculation_strategy_map = {
+            'loss1': self.aggregate_loss_1,
+            'loss2': self.aggregate_loss_2,
+            'loss3': self.aggregate_loss_3,
+            'loss4': self.aggregate_loss_4,
+            'loss5': self.aggregate_loss_5,
+        }
+        self.loss_aggregator = self.loss_calculation_strategy_map[hyperparameters.get('loss_fn', 'loss1')]
         self.save_hyperparameters()
 
-    def forward(self, input_ids, attention_mask, token_type_ids, where_to_add) -> TransformerBasedScorerOutput:
-        return self.model(input_ids, attention_mask, token_type_ids, where_to_add)
+    def forward(self, batch) -> TransformerBasedScorerOutput:
+        return self.model(**batch)
     
     def forward_rules_sentences(self, rules, sentences) -> TransformerBasedScorerOutput:
-        tokenized = self.tokenizer(rules, sentences, return_tensors='pt', padding=True)
-        output = self.forward(**{k:v.to(self.device) for (k,v) in tokenized.items()}, where_to_add=None)
+        tokenized = self.tokenizer(rules, sentences, return_tensors='pt', is_split_into_words=True, truncation=True, max_length=512, padding='longest')
+        output = self.model.forward(**{k:v.to(self.device) for (k,v) in tokenized.items()})
         return output
 
-    def training_step(self, batch, batch_idx):
-        output = self.forward(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], token_type_ids=batch['token_type_ids'], where_to_add=batch['noisy_positions'])
-        start_positions = batch['start_positions'].to(self.device)
-        end_positions   = batch['end_positions'].to(self.device)
-        gold_match      = batch['match'].to(self.device).float()
+    def predict_rule_sentence_pair(self, rule: Union[str, List[str]], sentence: Union[List[str], str]) -> Tuple[bool, List[str]]:
+        if isinstance(rule, str):
+            rule_input = [[rule]]
+        elif isinstance(rule, List) and len(rule) == 1:
+            rule_input = [rule]
+        else:
+            raise ValueError(f"Not supported type: {type(rule)}")
+        if isinstance(sentence, str):
+            sentence_input = [sentence.split(' ')]
+        elif isinstance(sentence, List) and isinstance(sentence[0], str):
+            sentence_input = [sentence]
+        tokenized   = self.tokenizer(rule_input, sentence_input, return_tensors='pt', is_split_into_words=True, truncation=True, max_length=512, padding='longest')
+        output      = self.model.forward(**{k:v.to(self.device) for (k, v) in tokenized.items()})
+        matched     = (output.match_prediction_logits[0][0] > 0).item()
+        tagged_word = self.tokenizer.decode([x[1] for x in zip(output.tag_logits[0][:,1].tolist(), tokenized['input_ids'][0].tolist()) if x[0] > 0])
+        return (matched, tagged_word)
 
-        # sometimes the start/end positions are outside our model inputs, we ignore these terms
-        ignored_index = output.start_logits.size(1)
-        start_positions = start_positions.clamp(0, ignored_index) # shape is: (batch_size,)
-        end_positions = end_positions.clamp(0, ignored_index) # shape is: (batch_size,)
+    def predict_episode(self, episode: Dict[str, Any]):
+        rules     = [[x] for x in episode['rules']]
+        sent      = [episode['test_sentence'] for r in rules]
+        tokenized = self.tokenizer(rules, sent, return_tensors='pt', is_split_into_words=True, truncation=True, max_length=512, padding='longest')
+        output      = self.model.forward(**{k:v.to(self.device) for (k, v) in tokenized.items()})
+        matched     = F.sigmoid(output.match_prediction_logits)
+        result = []
+        for batch_idx, rule in enumerate(rules):
+            tagged_words = self.tokenizer.decode([x[1] for x in zip(output.tag_logits[batch_idx][:,1].tolist(), tokenized['input_ids'][0].tolist()) if x[0] > 0])
+            result.append([rule[0], matched[batch_idx].detach().cpu().item(), tagged_words])
+        return result
 
-        # start_logits = output.start_logits.squeeze(-1) # shape is (batch_size, max_seq_length)
-        # end_logits   = output.end_logits.squeeze(-1) # shape is (batch_size, max_seq_length)
+
+
+    def calculate_loss_gr1_gs(self, batch, return_match_loss: bool = True, return_tag_loss: bool = True, return_cls_embedding: bool = False):
+        output_gr1_gs = self.model.forward(input_ids=batch['input_ids_gr1_gs'], attention_mask=batch['attention_mask_gr1_gs'], token_type_ids=batch['token_type_ids_gr1_gs'], return_tag_logits=return_tag_loss, return_match_logits=return_match_loss, return_cls_embedding=return_cls_embedding)
+
+        match_loss    = None
+        tag_loss      = None
         
+        if return_match_loss:
+            match_loss   = self.bce(output_gr1_gs.match_prediction_logits.squeeze(1), torch.ones_like(output_gr1_gs.match_prediction_logits.squeeze(1)))
+        if return_tag_loss:
+            tag_loss     = self.cel(output_gr1_gs.tag_logits.view(-1, 2), batch['tags_gr1_gs'].view(-1))
 
-        loss_fct = nn.CrossEntropyLoss(ignore_index=ignored_index)
-        # start_loss = loss_fct(start_logits, start_positions)
-        # end_loss = loss_fct(end_logits, end_positions)
-        match_loss = self.cel(output.match_prediction_logits.squeeze(1), gold_match)
+        # output_gr1_gs.cls_embedding will be None if return_cls_embedding is False
+        return (match_loss, tag_loss, output_gr1_gs.cls_embedding)
 
-        # loss = (start_loss + end_loss + match_loss)/3
-        loss = match_loss
+    def calculate_loss_gr2_gs(self, batch, return_match_loss: bool = True, return_tag_loss: bool = True, return_cls_embedding: bool = False):
+        output_gr2_gs = self.model.forward(input_ids=batch['input_ids_gr2_gs'], attention_mask=batch['attention_mask_gr2_gs'], token_type_ids=batch['token_type_ids_gr2_gs'], return_tag_logits=return_tag_loss, return_match_logits=return_match_loss, return_cls_embedding=return_cls_embedding)
 
+        match_loss    = None
+        tag_loss      = None
+        
+        if return_match_loss:
+            match_loss   = self.bce(output_gr2_gs.match_prediction_logits.squeeze(1), torch.ones_like(output_gr2_gs.match_prediction_logits.squeeze(1)))
+        if return_tag_loss:
+            tag_loss     = self.cel(output_gr2_gs.tag_logits.view(-1, 2), batch['tags_gr2_gs'].view(-1))
+
+        # output_gr2_gs.cls_embedding will be None if return_cls_embedding is False
+        return (match_loss, tag_loss, output_gr2_gs.cls_embedding)
+
+    def calculate_loss_rr_gs(self, batch, return_match_loss: bool = True, return_tag_loss: bool = True, return_cls_embedding: bool = False):
+        output_rr_gs = self.model.forward(input_ids=batch['input_ids_rr_gs'], attention_mask=batch['attention_mask_rr_gs'], token_type_ids=batch['token_type_ids_rr_gs'], return_tag_logits=return_tag_loss, return_match_logits=return_match_loss, return_cls_embedding=return_cls_embedding)
+
+        match_loss    = None
+        tag_loss      = None
+        
+        if return_match_loss:
+            match_loss   = self.bce(output_rr_gs.match_prediction_logits.squeeze(1), torch.zeros_like(output_rr_gs.match_prediction_logits.squeeze(1)))
+        if return_tag_loss:
+            tag_loss     = self.cel(output_rr_gs.tag_logits.view(-1, 2), torch.zeros(output_rr_gs.tag_logits.shape[0] * output_rr_gs.tag_logits.shape[1], dtype=torch.long).to(self.device))
+
+        # output_gr1_gs.cls_embedding will be None if return_cls_embedding is False
+        return (match_loss, tag_loss, output_rr_gs.cls_embedding)
+
+    def calculate_loss_rr_rs(self, batch, return_match_loss: bool = True, return_tag_loss: bool = True, return_cls_embedding: bool = False):
+        output_rr_rs = self.model.forward(input_ids=batch['input_ids_rr_rs'], attention_mask=batch['attention_mask_rr_rs'], token_type_ids=batch['token_type_ids_rr_rs'], return_tag_logits=return_tag_loss, return_match_logits=return_match_loss, return_cls_embedding=return_cls_embedding)
+
+        match_loss    = None
+        tag_loss      = None
+        
+        if return_match_loss:
+            match_loss   = self.bce(output_rr_rs.match_prediction_logits.squeeze(1), torch.zeros_like(output_rr_rs.match_prediction_logits.squeeze(1)))
+        if return_tag_loss:
+            tag_loss     = self.cel(output_rr_rs.tag_logits.view(-1, 2), torch.zeros(output_rr_rs.tag_logits.shape[0] * output_rr_rs.tag_logits.shape[1], dtype=torch.long).to(self.device))
+
+        # output_gr1_gs.cls_embedding will be None if return_cls_embedding is False
+        return (match_loss, tag_loss, output_rr_rs.cls_embedding)
+
+    # Consider the loss only on match_loss and tag_loss for:
+    # (i)  (good_rule, good_sentence)
+    # (ii) (random_rule, good_sentence)
+    def aggregate_loss_1(self, batch):
+        gr1_gs = self.calculate_loss_gr1_gs(batch, True, True, False)
+        rr_gs  = self.calculate_loss_rr_gs(batch, True, True, False)
+
+        return (gr1_gs[0] + gr1_gs[1] + rr_gs[0] + rr_gs[1])/4
+
+    # Consider the loss only on match_loss
+    def aggregate_loss_2(self, batch):
+        gr1_gs = self.calculate_loss_gr1_gs(batch, True, False, False)
+        rr_gs  = self.calculate_loss_rr_gs(batch, True, False, False)
+
+        return (gr1_gs[0] + rr_gs[0])/2
+        
+    # Consider the loss on match_loss and embedding loss
+    def aggregate_loss_3(self, batch):
+        gr1_gs = self.calculate_loss_gr1_gs(batch, True, False, True)
+        gr2_gs = self.calculate_loss_gr2_gs(batch, True, False, True)
+        rr_gs  = self.calculate_loss_rr_gs(batch, True, False, True)
+
+        match_loss         = (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
+
+        eps                = self.hyperparameters.get('triplet_loss', 1)
+        embedding_loss_pos = F.pairwise_distance(gr1_gs[2], gr2_gs[2], p=2)
+        embedding_loss_neg = F.pairwise_distance(gr1_gs[2], rr_gs[2],  p=2)
+        embedding_loss     = F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean()
+
+        return (match_loss + embedding_loss)/2
+
+    # Consider the loss on match_loss, tag_loss and embedding loss
+    def aggregate_loss_4(self, batch):
+        gr1_gs = self.calculate_loss_gr1_gs(batch, True, True, True)
+        gr2_gs = self.calculate_loss_gr2_gs(batch, True, True, True)
+        rr_gs  = self.calculate_loss_rr_gs(batch, True, True, True)
+
+        match_loss         = (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
+        tag_loss           = (gr1_gs[1] + gr2_gs[1] + rr_gs[1])/3
+
+        eps                = self.hyperparameters.get('triplet_loss', 1)
+        embedding_loss_pos = F.pairwise_distance(gr1_gs[2], gr2_gs[2], p=2)
+        embedding_loss_neg = F.pairwise_distance(gr1_gs[2], rr_gs[2],  p=2)
+        embedding_loss     = F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean()
+
+        return (match_loss + tag_loss + embedding_loss)/3
+
+    # Consider the loss on match_loss, tag_loss and embedding loss
+    # but do not consider the tag_loss for the one where the prediction should be negative
+    def aggregate_loss_5(self, batch):
+        gr1_gs = self.calculate_loss_gr1_gs(batch, True, True, True)
+        gr2_gs = self.calculate_loss_gr2_gs(batch, True, True, True)
+        rr_gs  = self.calculate_loss_rr_gs(batch, True, False, True)
+
+        match_loss         = (gr1_gs[0] + gr2_gs[0] + rr_gs[0])/3
+        tag_loss           = (gr1_gs[1] + gr2_gs[1])/2
+
+        eps                = self.hyperparameters.get('triplet_loss', 1)
+        embedding_loss_pos = F.pairwise_distance(gr1_gs[2], gr2_gs[2], p=2)
+        embedding_loss_neg = F.pairwise_distance(gr1_gs[2], rr_gs[2],  p=2)
+        embedding_loss     = F.relu(embedding_loss_pos - embedding_loss_neg + eps).mean()
+
+        return (match_loss + tag_loss + embedding_loss)/3
+
+    def training_step(self, batch, batch_idx):
+        loss = self.aggregate_loss_1(batch)
 
         self.log(f'train_loss', loss, on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        output      = self.forward(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], token_type_ids=batch['token_type_ids'], where_to_add=None)
+        if self.hyperparameters['validation_style'] == 'training_style':
+            return self.run_training_style_validation_step(batch, batch_idx)
+        elif self.hyperparameters['validation_style'] == 'episode_style':
+            return self.run_fewshot_episode_style_validation_step(batch, batch_idx)
+        else:
+            raise ValueError("Unknown validation style. It should be {'training_style', 'episode_style'}")
+
+    def validation_epoch_end(self, outputs: List):
+        if self.hyperparameters['validation_style'] == 'episode_style':
+            relations      = [y for x in outputs for y in x['relations']]
+            predictions    = [y for x in outputs for y in x['predictions']]
+            gold_relations = [y for x in outputs for y in x['gold']]
+
+            complete_results = {}
+
+            for threshold in [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 0.999, 0.9999]:
+                pred = []
+                gold = []
+                for (i, gold_relation) in enumerate(gold_relations):
+                    rel_to_score = defaultdict(list)
+                    for (pred_score, rel) in zip(predictions[i], relations[i]):
+                        rel_to_score[rel].append(pred_score)
+                    # rel_to_score = [(rel, np.mean(torch.topk(torch.tensor(scores), 3).values.tolist())) for (rel, scores) in rel_to_score.items()]
+                    rel_to_score = [(rel, np.mean(scores)) for (rel, scores) in rel_to_score.items()]
+                    max_score    = max(rel_to_score, key=lambda x: x[1])
+                    if max_score[1] > threshold:
+                        pred.append(max_score[0])
+                    else:
+                        pred.append('no_relation')
+                    gold.append(gold_relation)
+                p, r, f1 = tacred_score(gold, pred)
+                complete_results[threshold] = [p * 100, r * 100, f1 * 100]
+                if threshold == 0.5:
+                    # with open(f'temp_{self.current_epoch}.txt', 'w+') as fout:
+                        # fout.write("pred = [")
+                        # fout.write(', '.join([f'"{x}"' for x in pred]))
+                        # fout.write("]")
+                        # fout.write('\n')
+                        # fout.write("gold = [")
+                        # fout.write(', '.join([f'"{x}"' for x in gold]))
+                        # fout.write("]")
+                        # print('\n\n-----------------------------\n\n')
+                        # tacred_score(gold, pred, verbose=True)
+                        # print('\n\n-----------------------------\n\n')
+                    f1_macro = 100 * f1_score(gold, pred, average='macro', labels=list(set(gold).difference(["no_relation"])))
+
+
+                # p, r, f1  = tacred_score(gold, pred, verbose=True)
+            
+            for (threshold, (p, r, f1)) in complete_results.items():
+                self.log(f'f1_{threshold}', f1)
+                self.log(f'p_{threshold}',  p )
+                self.log(f'r_{threshold}',  r )
+
+            (p, r, f1) = complete_results[0.5]
+            self.log(f'f1',        f1      , prog_bar=True)
+            self.log(f'p',         p       , prog_bar=True)
+            self.log(f'r',         r       , prog_bar=True)
+            self.log(f'f1_macro',  f1_macro, prog_bar=True)
+
+            return {'f1': f1 * 100, 'p': p * 100, 'r': r * 100}
+        elif self.hyperparameters['validation_style'] == 'training_style':
+            pred = [y for x in outputs for y in x['pred']]
+            gold = [y for x in outputs for y in x['gold']]
+
+            p, r, f1  = f1_score(gold, pred), precision_score(gold, pred), recall_score(gold, pred)
+            
+            self.log(f'f1', f1, prog_bar=True)
+            self.log(f'p',  p , prog_bar=True)
+            self.log(f'r',  r , prog_bar=True)
+
+            return {'f1': f1, 'p': p, 'r': r}
+        else:
+            raise ValueError("Unknown validation style. It should be {'training_style', 'episode_style'}")
+
+
+    def run_training_style_validation_step(self, batch, batch_idx):
+        output      = self.forward(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], token_type_ids=batch['token_type_ids'])
         predictions = self.sigmoid(output.match_prediction_logits.squeeze(1)) > self.threshold
 
         return {
@@ -186,20 +354,7 @@ class PLWrapper(pl.LightningModule):
             'gold': batch['match'].detach().cpu().numpy().tolist(),
         }
 
-    def validation_epoch_end(self, outputs: List):
-        pred = [y for x in outputs for y in x['pred']]
-        gold = [y for x in outputs for y in x['gold']]
-        p, r, f1  = f1_score(gold, pred), precision_score(gold, pred), recall_score(gold, pred)
-        
-        self.log(f'f1', f1, prog_bar=True)
-        self.log(f'p',  p , prog_bar=True)
-        self.log(f'r',  r , prog_bar=True)
-
-        return {'f1': f1, 'p': p, 'r': r}
-
-    def validation_step2(self, batch, batch_idx):
-        # print(batch[0])
-        # exit()
+    def run_fewshot_episode_style_validation_step(self, batch, batch_idx):
         rules     = []
         sentences = []
         lengths   = []
@@ -208,158 +363,227 @@ class PLWrapper(pl.LightningModule):
             lengths.append(len(line['rules']))
             relations.append(line['rules_relations'])
             for (rule, relation) in zip(line['rules'], line['rules_relations']):
-                rules.append(' '.join(rule))
+                if isinstance(rule, str):
+                    rules.append(rule)
+                else:
+                    raise ValueError("Rule is a list")
                 sentences.append(' '.join(line['test_sentence']))
-        tokenized = self.tokenizer(rules, sentences, return_tensors='pt', padding=True)
-        output = self.forward(**{k:v.to(self.device) for (k,v) in tokenized.items()}, where_to_add=None)
-
+        tokenized = self.tokenizer(rules, sentences, return_tensors='pt', padding='longest', truncation=True, max_length=512)
+        output = self.forward({k:v.to(self.device) for (k,v) in tokenized.items()})
         output_split = self.sigmoid(output.match_prediction_logits).squeeze(1).split(lengths)
-
-        pred = []
-        # prediction is a tensor of shape <number_of_rules>
-        # relation is a list of strings, each string being associated with a 
-        # value in the prediction tensor (representing the "probability" of that
-        # relation)
-        for prediction, relation in zip(output_split, relations): 
-            if prediction.max() > self.threshold:
-                pred.append(relation[prediction.argmax()])
-            else:
-                pred.append(self.no_relation_label)        
-
         gold = [b['gold_relation'] for b in batch]
-        # print(output.match_prediction_logits.squeeze(1))
-        # print(self.sigmoid(output.match_prediction_logits).squeeze(1))
-        # print(output_split)
-        # print(pred)
-        # print(gold)
-        # print(output.start_logits[output.match_prediction_logits.argmax()].argmax())
-        # print(output.end_logits[output.match_prediction_logits.argmax()].argmax())
-        # a()
-        # p, r, f1  = tacred_score(gold, pred)
-
-        # self.log(f'f1', f1, prog_bar=True)
-        # self.log(f'p',  p , prog_bar=True)
-        # self.log(f'r',  r , prog_bar=True)
-
-        return {
-            'pred': pred,
-            'gold': gold,
-        }    
-
-    def validation_epoch_end2(self, outputs: List):
-        pred = [y for x in outputs for y in x['pred']]
-        gold = [y for x in outputs for y in x['gold']]
-        p, r, f1  = tacred_score(gold, pred)
         
-        self.log(f'f1', f1, prog_bar=True)
-        self.log(f'p',  p , prog_bar=True)
-        self.log(f'r',  r , prog_bar=True)
-
-        return {'f1': f1, 'p': p, 'r': r}
+        # We do not take max because we want to investigate multiple thresholds
+        return {
+            'gold': gold,
+            'predictions': [x.detach().cpu().numpy().tolist() for x in list(output_split)],
+            'relations': relations,
+        }
 
     def configure_optimizers(self):
-        from transformers import get_linear_schedule_with_warmup
+        lr             = self.hyperparameters.get('learning_rate', 3e-5)
+        base_lr        = self.hyperparameters.get('base_lr', self.hyperparameters.get('learning_rate', 3e-5)/5)
+        max_lr         = self.hyperparameters.get('max_lr', self.hyperparameters.get('learning_rate', 3e-5)*5)
 
-        lr             = 3e-4
-        base_lr        = 3e-6
-        max_lr         = 3e-4
-        mode           = 'triangular2'
-        cycle_momentum = False
-        step_size_up   = 2500
-        optimizer      = AdamW(self.parameters(), lr=3e-5)
-        # return optimizer
-        return (
-            [optimizer],
-            [{
-                'scheduler'        : get_linear_schedule_with_warmup(optimizer, 500, 2500),
-                'interval'         : 'step',
-                'frequency'        : 1,
-                'strict'           : True,
-                'reduce_on_plateau': False,
-            }]
-        )
+        optimizer      = torch.optim.AdamW(self.parameters(), lr=lr)
+        if not self.hyperparameters['use_scheduler']:
+            return optimizer
+        else:
+            return (
+                [optimizer],
+                [{
+                    # 'scheduler'        : get_linear_schedule_with_warmup(optimizer, num_warmup_steps=self.hyperparameters.get('num_warmup_steps', 1000), num_training_steps=self.hyperparameters.get('num_training_steps', 10000)),
+                    'scheduler'        : torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr = base_lr, max_lr = max_lr, mode='triangular2', cycle_momentum=False, step_size_up=self.hyperparameters.get('step_size_up', 10000)),
+                    'interval'         : 'step',
+                    'frequency'        : 1,
+                    'strict'           : True,
+                    'reduce_on_plateau': False,
+                }]
+            )
 
 
 def get_bertlike_model_with_customs(name: str, special_tokens: List[str]):
     model     = AutoModel.from_pretrained(name)
     tokenizer = AutoTokenizer.from_pretrained(name)
-    tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
-    model.resize_token_embeddings(len(tokenizer)) 
-    model.embeddings.token_type_embeddings = torch.nn.modules.sparse.Embedding(4, model.config.hidden_size)
-    torch.nn.init.uniform_(model.embeddings.token_type_embeddings.weight, -0.01, 0.01)
+    if len(special_tokens) > 0:
+        tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
+        model.resize_token_embeddings(len(tokenizer)) 
+    # model.embeddings.token_type_embeddings = torch.nn.modules.sparse.Embedding(4, model.config.hidden_size)
+    # torch.nn.init.uniform_(model.embeddings.token_type_embeddings.weight, -0.01, 0.01)
     return (model, tokenizer)
 
+def prepare_train(examples, tokenizer, max_seq_length=500, padding_strategy='max_length'):
+    gr1_gs = tokenize_words_and_align_labels(tokenizer, examples, "good_rule1", "good_sentence", "good_sentence_tokens", label_for_sequence=1, padding_strategy=padding_strategy, max_seq_length=max_seq_length, label_all_tokens=False)
+    gr2_gs = tokenize_words_and_align_labels(tokenizer, examples, "good_rule2", "good_sentence", "good_sentence_tokens", label_for_sequence=1, padding_strategy=padding_strategy, max_seq_length=max_seq_length, label_all_tokens=False)
+    rr_gs  = tokenizer(
+        examples['random_rule'], 
+        examples['good_sentence'],
+        padding=padding_strategy,
+        truncation=True,
+        max_length=max_seq_length,
+        # We use this argument because the texts in our dataset are lists of words (with a label for each word).
+        is_split_into_words=True,
+    )
+    # rr_gs  = tokenizer(
+    #     examples['random_rule'], 
+    #     examples['good_sentence'],
+    #     padding=padding_strategy,
+    #     truncation=True,
+    #     max_length=max_seq_length,
+    #     # We use this argument because the texts in our dataset are lists of words (with a label for each word).
+    #     is_split_into_words=True,
+    # )
+    return {
+        'input_ids_gr1_gs'     : gr1_gs['input_ids'],
+        'attention_mask_gr1_gs': gr1_gs['attention_mask'],
+        'token_type_ids_gr1_gs': gr1_gs['token_type_ids'],
+        'tags_gr1_gs'          : gr1_gs['labels'],
+
+        'input_ids_gr2_gs'     : gr2_gs['input_ids'],
+        'attention_mask_gr2_gs': gr2_gs['attention_mask'],
+        'token_type_ids_gr2_gs': gr2_gs['token_type_ids'],
+        'tags_gr2_gs'          : gr2_gs['labels'],
+        
+        'input_ids_rr_gs'     : rr_gs['input_ids'],
+        'attention_mask_rr_gs': rr_gs['attention_mask'],
+        'token_type_ids_rr_gs': rr_gs['token_type_ids'],
+        
+    }
 
 
-
-if __name__ == '__main__':
-    from src.model.util import init_random
-    from src.model.util import prepare_train_features_with_start_end
-    init_random(1)
-    # (model, tokenizer) = get_bertlike_model_with_customs('google/bert_uncased_L-2_H-128_A-2', [])
-    # (model, tokenizer) = get_bertlike_model_with_customs('bert-base-cased', [])
-    # ntsb               = NoisyTransformerBasedScorer(model)
-    # pl_model           = PLWrapper('bert-base-cased')
-    pl_model           = PLWrapper('google/bert_uncased_L-2_H-128_A-2')
-    # o                  = ntsb(**tokenizer("This is a test", return_tensors='pt'))
-    accumulate_grad_batches = 8
-    logger = TensorBoardLogger('logs', name='span-prediction')
+def get_callbacks(accumulate_grad):
     pb = ProgressBar(refresh_rate=1)
-    accumulator = GradientAccumulationScheduler(scheduling={0: 8, 100: 4})
+    accumulator = GradientAccumulationScheduler(scheduling={0: accumulate_grad, 100: 4})
     cp = ModelCheckpoint(
         monitor    = 'f1',
         save_top_k = 7,
         mode       = 'max',
         save_last=True,
-        filename='{epoch}-{step}-{val_loss:.3f}-{f1:.3f}-{p:.3f}-{r:.3f}'
+        filename='{epoch}-{step}-{f1:.3f}-{p:.3f}-{r:.3f}-{f1_macro:.3f}'
     )
     # cp = kwargs.get('split_dataset_training', {}).get('dataset_modelcheckpoint', base_cp)
     lrm = LearningRateMonitor(logging_interval='step')
-
+    swa = StochasticWeightAveraging()
     es = EarlyStopping(
         monitor  = 'f1',
         patience = 3,
         mode     = 'max'
     )
+
+    return [lrm, cp, es, pb, accumulator, swa]
+
+def get_arg_parser():
+    from distutils.util import strtobool
+    parser = argparse.ArgumentParser(description='CLI Parameters for the (Rule, Sentence) scorer', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--learning_rate',           type=float,                         default=3e-5,                                                                      help='learning rate')
+    parser.add_argument('--model_name',              type=str,                           default='google/bert_uncased_L-4_H-256_A-4',                                       help="model_name")
+    parser.add_argument('--threshold',               type=float,                         default=0.5,                                                                       help="extra_tokens")
+    parser.add_argument('--extra_tokens', nargs='+', type=str,                           default=['misc', 'criminal_charge', 'cause_of_death', 'url', 'state_or_province'], help="threshold")
+    parser.add_argument('--no_relation_label',       type=str,                           default='no_relation',                                                             help="no_relation_label")
+    parser.add_argument('--num_warmup_steps_factor', type=float,                         default=0.2,                                                                       help="num_warmup_steps")
+    parser.add_argument('--step_size_up_factor',     type=float,                         default=0.5,                                                                       help="step_size_up")
+    parser.add_argument('--use_scheduler',           type=lambda x: bool(strtobool(x)),  default=True,                                                                      help="use_scheduler")
+    parser.add_argument('--scheduler_type',          type=str,                           default='cycliclr',                                                                help="scheduler_type")
+    parser.add_argument('--gradient_clip_val',       type=float,                         default=1.0,                                                                       help="gradient_clip_val")
+    parser.add_argument('--gradient_clip_algorithm', type=str,                           default="value",                                                                   help="gradient_clip_algorithm")
+    parser.add_argument('--description',             type=str,                           default=None,                                                                      help="description of the model")
+    parser.add_argument('--validation_style',        type=str,                           default='episode_style',                                                           help="validation_style")
+    parser.add_argument('--loss_fn',                 type=str,                           default='loss1',                                                                   help="loss_fn")
+    parser.add_argument('--accumulate_grad_batches', type=int,                           default=1,                                                                         help="accumulate_grad_batches")
+    parser.add_argument('--train_batch_size',        type=int,                           default=32,                                                                        help="train_batch_size")
+    parser.add_argument('--eval_batch_size',         type=int,                           default=4,                                                                         help="eval_batch_size")
+    parser.add_argument('--max_epochs',              type=int,                           default=5,                                                                         help="max_epochs")
+
+    return parser
+
+if __name__ == '__main__':
+    from src.model.util import init_random
+    from src.model.util import prepare_train_features_with_start_end
+    init_random(1)
+    # exit()
+    args = vars(get_arg_parser().parse_args())
+
+    # pl_model = PLWrapper.load_from_checkpoint('/home/rvacareanu/projects/temp/clean_repos/rules_softmatch/logs/rule-sentence/version_3/checkpoints/epoch=2-step=3890-val_loss=0.000-f1=8.831-p=4.718-r=68.860-f1=f1_macro=15.265.ckpt')
+    # pl_model.to(torch.device('cuda'))
+    # pl_model.eval()
+    # eval_dataset1  = datasets.load_dataset('json', data_files='/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl', split="train")
+    # dl_eval11 = DataLoader(eval_dataset1, batch_size=2, collate_fn = lambda x: x, shuffle=False, num_workers=16)
+    # from collections import defaultdict
+    # o = []
+    # import tqdm
+    # for batch in tqdm.tqdm(dl_eval11):
+    #     o.append(pl_model.run_fewshot_episode_style_validation_step(batch, None, 0.8, True))
+
+    # ed1 = eval_dataset1.filter(lambda x: x['gold_relation'] != 'no_relation')
+    # ed = ed1[2]
+    # for rule, rule_relation in zip(ed['rules'], ed['rules_relations']):
+        # print('-------')
+        # print(' '.join(ed['test_sentence']))
+        # print(rule_relation, rule)
+        # print(pl_model.predict_rule_sentence_pair(rule, ed['test_sentence']))
+        # print(ed['gold_relation'])
+        # print('-------')
+        # print('\n\n')
+    # exit()
+
+    
+    # (model, tokenizer) = get_bertlike_model_with_customs('google/bert_uncased_L-2_H-128_A-2', [])
+    # (model, tokenizer) = get_bertlike_model_with_customs('bert-base-cased', [])
+    # ntsb               = NoisyTransformerBasedScorer(model)
+    # pl_model           = PLWrapper('bert-base-cased')
+    # model_name              = 'google/bert_uncased_L-2_H-128_A-2'
+    # model_name              = 'bert-base-cased'
+    model_name              = args['model_name']#'google/bert_uncased_L-4_H-256_A-4'
+    extra_tokens            = args['extra_tokens']#['misc', 'criminal_charge', 'cause_of_death', 'url', 'state_or_province']
+    accumulate_grad_batches = args['accumulate_grad_batches']
+    max_epochs              = args['max_epochs']
+
+    (_, tokenizer) = get_bertlike_model_with_customs(model_name, extra_tokens)
+
+    train_dataset = datasets.load_dataset('json', data_files='/data/nlp/corpora/softrules/tacred_fewshot/train/hf_datasets/rules_sentences_pair/train_large.jsonl').map(lambda examples: prepare_train(examples, tokenizer, max_seq_length=300), batched=True)['train']
+    train_dataset.set_format(type='torch', columns=[
+        'input_ids_gr1_gs', 'attention_mask_gr1_gs', 'token_type_ids_gr1_gs', 'tags_gr1_gs',
+        'input_ids_gr2_gs', 'attention_mask_gr2_gs', 'token_type_ids_gr2_gs', 'tags_gr2_gs',
+        'input_ids_rr_gs',  'attention_mask_rr_gs',  'token_type_ids_rr_gs', 
+    ])
+
+    eval_dataset1  = datasets.load_dataset('json', data_files='/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl', split="train")
+    eval_dataset2  = datasets.load_dataset('json', data_files='/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_5_shots_10K_episodes_3q_seed_160290.jsonl', split="train")
+    
+    dl_train  = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=32)
+    dl_eval11 = DataLoader(eval_dataset1, batch_size=8, collate_fn = lambda x: x, shuffle=False, num_workers=8)
+    dl_eval12 = DataLoader(eval_dataset2, batch_size=1, collate_fn = lambda x: x, shuffle=False, num_workers=2)
+
+    num_training_steps = len(dl_train) / accumulate_grad_batches
+    print(len(dl_train))
+    print(len(dl_eval11))
+
+    params = {
+        **args
+    }
+    print(params)
+    pl_model           = PLWrapper(params)
+    # o                  = ntsb(**tokenizer("This is a test", return_tensors='pt'))
+    logger = TensorBoardLogger('logs', name='rule-sentence')
     trainer_params = {
-        'max_epochs'             : 5,
+        'max_epochs'             : max_epochs,
         'accelerator'            : 'gpu',
         'devices'                : 1,
         'precision'              : 16,
-        'num_sanity_val_steps'   : 1000,
-        'gradient_clip_val'      : 1,
+        'num_sanity_val_steps'   : 100,
+        'gradient_clip_val'      : 1.0,
+        'gradient_clip_algorithm': "value",
         'logger'                 : logger,
-        'check_val_every_n_epoch': 1,
+        # 'check_val_every_n_epoch': 1,
+        # 'val_check_interval'     : 1.0,
         # 'accumulate_grad_batches': 1,#accumulate_grad_batches,
-        'log_every_n_steps'      : 1000,
+        # 'log_every_n_steps'      : 1000,
     }
-    trainer = Trainer(**trainer_params, callbacks = [lrm, cp, es, pb, accumulator,],)
 
-    # train_dataset = datasets.load_dataset('json', data_files='/data/nlp/corpora/odinsynth2/pretraining/random_rules_extractions/merged_train_split_train.jsonl', split="train").map(lambda examples: prepare_train_features_with_start_end(examples, tokenizer), batched=True)
-    # train_dataset = datasets.load_dataset('json', data_files='/data/nlp/corpora/odinsynth2/pretraining/random_rules_extractions/merged_train_split_train_expanded.jsonl', split="train[:10000]").map(lambda examples: prepare_train_features_with_start_end(examples, tokenizer), batched=True)
-    # train_dataset = datasets.load_dataset('json', data_files='/data/nlp/corpora/odinsynth2/pretraining/random_rules_extractions/merged_train_split_train.jsonl', split="train").filter(lambda x: len(x['context'].split(' ')) < 200).map(lambda examples: prepare_train_features_with_start_end(examples, tokenizer), batched=True)
-    # train_dataset.save_to_disk('/data/nlp/corpora/odinsynth2/pretraining/random_rules_extractions/arrow/merged_train_split_train_bert_uncased_L-2_H-128_A-2')
-    # train_dataset = datasets.load_from_disk('/data/nlp/corpora/odinsynth2/pretraining/random_rules_extractions/arrow/merged_train_split_train_bertbaseuncased')
-    train_dataset = datasets.load_from_disk('/data/nlp/corpora/odinsynth2/pretraining/random_rules_extractions/arrow/merged_train_split_train_bert_uncased_L-2_H-128_A-2')#.select(range(1000))
-    dataset = datasets.load_from_disk('/data/nlp/corpora/odinsynth2/pretraining/random_rules_extractions/arrow/merged_train_split_train_bert_uncased_L-2_H-128_A-2').select(range(500000))
-    dataset.set_format(type='torch', columns=['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions', 'noisy_positions', 'match'])
-    dataset = dataset.train_test_split(0.2)
-    # exit()
-    train_dataset.set_format(type='torch', columns=['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions', 'noisy_positions', 'match'])
-    dataset.set_format(type='torch', columns=['input_ids', 'token_type_ids', 'attention_mask', 'start_positions', 'end_positions', 'noisy_positions', 'match'])
-    eval_dataset  = datasets.load_dataset('json', data_files='/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl', split="train")
-    
-    dl_train = DataLoader(dataset['train'], batch_size=32, shuffle=True, num_workers=32)
-    num_training_steps = len(dl_train) / accumulate_grad_batches
-    # print(len(dl_train))
-    print(num_training_steps)
-    # exit()
-    dl_eval  = DataLoader(dataset['test'], batch_size=32, num_workers=32)#ollate_fn = lambda x: x, shuffle=False, num_workers=32)
-    dl_eval2  = DataLoader(eval_dataset, batch_size=32, num_workers=32)#ollate_fn = lambda x: x, shuffle=False, num_workers=32)
-    # exit()
+    trainer = Trainer(**trainer_params, callbacks = get_callbacks(accumulate_grad_batches),)
     # pl_model = PLWrapper.load_from_checkpoint('/home/rvacareanu/projects/temp/clean_repos/rules_softmatch/logs/span-prediction/version_29/checkpoints/epoch=0-step=7046-val_loss=0.000-f1=0.009-p=0.005-r=0.085.ckpt')
-    trainer.validate(model=pl_model, dataloaders=dl_eval)
-    trainer.fit(pl_model, train_dataloaders = dl_train, val_dataloaders = dl_eval)
-    trainer.validate(model=pl_model, dataloaders=dl_eval)
-
-
+    # trainer.test(model=pl_model, dataloaders=dl_eval11)
+    # trainer.test(model=pl_model, dataloaders=dl_eval12)
+    trainer.fit(pl_model, train_dataloaders = dl_train, val_dataloaders = dl_eval11)
+    # trainer.test(model=pl_model, dataloaders=dl_eval11)
+    # trainer.test(model=pl_model, dataloaders=dl_eval12)
