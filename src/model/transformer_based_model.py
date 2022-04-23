@@ -498,9 +498,11 @@ def get_arg_parser():
     parser.add_argument('--train_batch_size',        type=int,                           default=32,                                  help="train_batch_size")
     parser.add_argument('--eval_batch_size',         type=int,                           default=4,                                   help="eval_batch_size")
     parser.add_argument('--max_epochs',              type=int,                           default=5,                                   help="max_epochs")
-    parser.add_argument('--train_dataset',           type=str,                           default=train_dataset_default,               help="max_epochs")
-    parser.add_argument('--eval_dataset1',           type=str,                           default=eval_dataset1_default,               help="max_epochs")
-    parser.add_argument('--eval_dataset2',           type=str,                           default=eval_dataset2_default,               help="max_epochs")
+    parser.add_argument('--train_dataset',           type=str,                           default=train_dataset_default,               help="train_dataset")
+    parser.add_argument('--eval_dataset1',           type=str,                           default=eval_dataset1_default,               help="eval_dataset1")
+    parser.add_argument('--eval_dataset2',           type=str,                           default=eval_dataset2_default,               help="eval_dataset2")
+    parser.add_argument('--training_batch_size',     type=int,                           default=32,                                  help="training_batch_siW")
+    parser.add_argument('--eval_batch_size',         type=int,                           default=32,                                  help="eval_batch_size")
 
     return parser
 
@@ -558,8 +560,8 @@ if __name__ == '__main__':
     eval_dataset1  = datasets.load_dataset('json', data_files=args['eval_dataset1'], split="train")
     eval_dataset2  = datasets.load_dataset('json', data_files=args['eval_dataset2'], split="train")
     
-    dl_train  = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=32)
-    dl_eval11 = DataLoader(eval_dataset1, batch_size=8, collate_fn = lambda x: x, shuffle=False, num_workers=8)
+    dl_train  = DataLoader(train_dataset, batch_size=args['training_batch_size'], shuffle=True, num_workers=32)
+    dl_eval11 = DataLoader(eval_dataset1, batch_size=args['eval_batch_size'], collate_fn = lambda x: x, shuffle=False, num_workers=8)
     dl_eval12 = DataLoader(eval_dataset2, batch_size=1, collate_fn = lambda x: x, shuffle=False, num_workers=2)
 
     num_training_steps = len(dl_train) / accumulate_grad_batches
@@ -572,7 +574,7 @@ if __name__ == '__main__':
     print(params)
     pl_model           = PLWrapper(params)
     # o                  = ntsb(**tokenizer("This is a test", return_tensors='pt'))
-    logger = TensorBoardLogger('logs', name='rule-sentence')
+    logger = TensorBoardLogger('/data/logs/', name='rule-sentence')
     trainer_params = {
         'max_epochs'             : max_epochs,
         'accelerator'            : 'gpu',
