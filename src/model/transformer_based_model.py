@@ -262,7 +262,7 @@ class PLWrapper(pl.LightningModule):
         return (match_loss + tag_loss + embedding_loss)/3
 
     def training_step(self, batch, batch_idx):
-        loss = self.aggregate_loss_1(batch)
+        loss = self.loss_aggregator(batch)
 
         self.log(f'train_loss', loss, on_step=True, on_epoch=True)
         return loss
