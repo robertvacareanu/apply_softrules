@@ -100,6 +100,7 @@ class PLWrapper(pl.LightningModule):
             'loss5': self.aggregate_loss_5,
         }
         self.loss_aggregator = self.loss_calculation_strategy_map[hyperparameters.get('loss_fn', 'loss1')]
+        print(self.loss_aggregator)
         self.save_hyperparameters()
 
     def forward(self, batch) -> TransformerBasedScorerOutput:
