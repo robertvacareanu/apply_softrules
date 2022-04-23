@@ -534,6 +534,7 @@ def get_arg_parser():
     parser.add_argument('--tag_loss_multiplier',       type=float,                         default=1.0,                                 help="tag_loss_multiplier")
     parser.add_argument('--match_loss_multiplier',     type=float,                         default=1.0,                                 help="match_loss_multiplier")
     parser.add_argument('--embedding_loss_multiplier', type=float,                         default=1.0,                                 help="embedding_loss_multiplier")
+    parser.add_argument('--log_save_name',             type=str,                           default='rule-sentence',                     help="embedding_loss_multiplier")
 
     return parser
 
@@ -605,7 +606,7 @@ if __name__ == '__main__':
     print(params)
     pl_model           = PLWrapper(params)
     # o                  = ntsb(**tokenizer("This is a test", return_tensors='pt'))
-    logger = TensorBoardLogger('/data/logs/', name='rule-sentence')
+    logger = TensorBoardLogger('/data/logs/', name='rule-sentence-temp')
     trainer_params = {
         'max_epochs'             : max_epochs,
         'accelerator'            : 'gpu',
