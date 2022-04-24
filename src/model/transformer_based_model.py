@@ -535,6 +535,7 @@ def get_arg_parser():
     parser.add_argument('--match_loss_multiplier',     type=float,                         default=1.0,                                 help="match_loss_multiplier")
     parser.add_argument('--embedding_loss_multiplier', type=float,                         default=1.0,                                 help="embedding_loss_multiplier")
     parser.add_argument('--log_save_name',             type=str,                           default='rule-sentence',                     help="log_save_name")
+    parser.add_argument('--use_swa',                   type=lambda x: bool(strtobool(x)),  default=True,                                help="use StochasticWeightAveraging")
 
     return parser
 
@@ -627,7 +628,7 @@ if __name__ == '__main__':
         # 'log_every_n_steps'      : 1000,
     }
 
-    trainer = Trainer(**trainer_params, callbacks = get_callbacks(accumulate_grad_batches),)
+    trainer = Trainer(**trainer_params, callbacks = get_callbacks(accumulate_grad_batches, args),)
     # pl_model = PLWrapper.load_from_checkpoint('/home/rvacareanu/projects/temp/clean_repos/rules_softmatch/logs/span-prediction/version_29/checkpoints/epoch=0-step=7046-val_loss=0.000-f1=0.009-p=0.005-r=0.085.ckpt')
     # trainer.test(model=pl_model, dataloaders=dl_eval11)
     # trainer.test(model=pl_model, dataloaders=dl_eval12)
