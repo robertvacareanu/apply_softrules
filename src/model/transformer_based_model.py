@@ -307,7 +307,7 @@ class PLWrapper(pl.LightningModule):
 
     def validation_epoch_end(self, outputs: List):
         if self.hyperparameters['validation_style'] == 'episode_style':
-            complete_results = self.compute_results(outputs, thresholds=np.linspace(0.1, 1.0, 901).tolist())
+            complete_results = self.compute_results(outputs)#, thresholds=np.linspace(0.1, 1.0, 901).tolist())
             # import pickle
             # with open('5way1shot.pkl', 'wb') as fout:
                 # pickle.dump(complete_results, fout, protocol=pickle.HIGHEST_PROTOCOL)
