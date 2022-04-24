@@ -480,26 +480,39 @@ def prepare_train(examples, tokenizer, max_seq_length=500, padding_strategy='max
     }
 
 
-def get_callbacks(accumulate_grad):
+def get_callbacks(accumulate_grad, params):
+    callbacks = []
+
     pb = ProgressBar(refresh_rate=1)
+    callbacks.append(pb)
+    
     accumulator = GradientAccumulationScheduler(scheduling={0: accumulate_grad, 100: 4})
+    callbacks.append(accumulator)
+    
     cp = ModelCheckpoint(
-        monitor    = 'f1',
+        monitor    = 'best_f1',
         save_top_k = 7,
         mode       = 'max',
         save_last=True,
-        filename='{epoch}-{step}-{f1:.3f}-{p:.3f}-{r:.3f}-{f1_macro:.3f}'
+        filename='{epoch}-{step}-{best_f1:.3f}-{best_thr:.5f}-{f1:.3f}-{p:.3f}-{r:.3f}-{f1_macro:.3f}'
     )
+    callbacks.append(cp)
+    
     # cp = kwargs.get('split_dataset_training', {}).get('dataset_modelcheckpoint', base_cp)
     lrm = LearningRateMonitor(logging_interval='step')
-    swa = StochasticWeightAveraging()
+    callbacks.append(lrm)
+    
     es = EarlyStopping(
-        monitor  = 'f1',
+        monitor  = 'best_f1',
         patience = 3,
         mode     = 'max'
     )
-
-    return [lrm, cp, es, pb, accumulator, swa]
+    callbacks.append(es)
+    if params['use_swa']:
+        swa = StochasticWeightAveraging(swa_lrs=params['learning_rate'])
+        callbacks.append(swa)
+    
+    return callbacks
 
 def get_arg_parser():
     from distutils.util import strtobool
