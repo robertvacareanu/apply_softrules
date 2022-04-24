@@ -598,8 +598,8 @@ if __name__ == '__main__':
     dl_eval12 = DataLoader(eval_dataset2, batch_size=1, collate_fn = lambda x: x, shuffle=False, num_workers=2)
 
     num_training_steps      = len(dl_train) / accumulate_grad_batches
-    step_size_up            = num_training_steps * args['step_size_up_factor']
-    num_warmup_steps_factor = num_training_steps * args['num_warmup_steps_factor']
+    step_size_up            = int(num_training_steps * args['step_size_up_factor'])
+    num_warmup_steps_factor = int(num_training_steps * args['num_warmup_steps_factor'])
     print(len(dl_train))
     print(len(dl_eval11))
 
