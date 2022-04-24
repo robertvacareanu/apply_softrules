@@ -307,52 +307,18 @@ class PLWrapper(pl.LightningModule):
 
     def validation_epoch_end(self, outputs: List):
         if self.hyperparameters['validation_style'] == 'episode_style':
-            relations      = [y for x in outputs for y in x['relations']]
-            predictions    = [y for x in outputs for y in x['predictions']]
-            gold_relations = [y for x in outputs for y in x['gold']]
-
-            complete_results = {}
-
-            for threshold in [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 0.999, 0.9999]:
-                pred = []
-                gold = []
-                for (i, gold_relation) in enumerate(gold_relations):
-                    rel_to_score = defaultdict(list)
-                    for (pred_score, rel) in zip(predictions[i], relations[i]):
-                        rel_to_score[rel].append(pred_score)
-                    # rel_to_score = [(rel, np.mean(torch.topk(torch.tensor(scores), 3).values.tolist())) for (rel, scores) in rel_to_score.items()]
-                    rel_to_score = [(rel, np.mean(scores)) for (rel, scores) in rel_to_score.items()]
-                    max_score    = max(rel_to_score, key=lambda x: x[1])
-                    if max_score[1] > threshold:
-                        pred.append(max_score[0])
-                    else:
-                        pred.append('no_relation')
-                    gold.append(gold_relation)
-                p, r, f1 = tacred_score(gold, pred)
-                complete_results[threshold] = [p * 100, r * 100, f1 * 100]
-                if threshold == 0.5:
-                    # with open(f'temp_{self.current_epoch}.txt', 'w+') as fout:
-                        # fout.write("pred = [")
-                        # fout.write(', '.join([f'"{x}"' for x in pred]))
-                        # fout.write("]")
-                        # fout.write('\n')
-                        # fout.write("gold = [")
-                        # fout.write(', '.join([f'"{x}"' for x in gold]))
-                        # fout.write("]")
-                        # print('\n\n-----------------------------\n\n')
-                        # tacred_score(gold, pred, verbose=True)
-                        # print('\n\n-----------------------------\n\n')
-                    f1_macro = 100 * f1_score(gold, pred, average='macro', labels=list(set(gold).difference(["no_relation"])))
-
-
-                # p, r, f1  = tacred_score(gold, pred, verbose=True)
-            
-            for (threshold, (p, r, f1)) in complete_results.items():
+            complete_results = self.compute_results(outputs, thresholds=np.linspace(0.1, 1.0, 901).tolist())
+            # import pickle
+            # with open('5way1shot.pkl', 'wb') as fout:
+                # pickle.dump(complete_results, fout, protocol=pickle.HIGHEST_PROTOCOL)
+            # print(complete_results)
+            # exit()
+            for (threshold, (p, r, f1, f1_macro)) in complete_results.items():
                 self.log(f'f1_{threshold}', f1, sync_dist=True)
                 self.log(f'p_{threshold}',  p , sync_dist=True)
                 self.log(f'r_{threshold}',  r , sync_dist=True)
 
-            (p, r, f1) = complete_results[0.5]
+            (p, r, f1, f1_macro) = complete_results[0.5]
             self.log(f'f1',        f1      , prog_bar=True, sync_dist=True)
             self.log(f'p',         p       , prog_bar=True, sync_dist=True)
             self.log(f'r',         r       , prog_bar=True, sync_dist=True)
@@ -375,6 +341,48 @@ class PLWrapper(pl.LightningModule):
         else:
             raise ValueError("Unknown validation style. It should be {'training_style', 'episode_style'}")
 
+    def compute_results(self, outputs, thresholds = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 0.999, 0.9999], verbose=False) -> Dict[float, List[float]]:
+        relations      = [y for x in outputs for y in x['relations']]
+        predictions    = [y for x in outputs for y in x['predictions']]
+        gold_relations = [y for x in outputs for y in x['gold']]
+
+        complete_results = {}
+
+        for threshold in thresholds:
+            pred = []
+            gold = []
+            for (i, gold_relation) in enumerate(gold_relations):
+                rel_to_score = defaultdict(list)
+                for (pred_score, rel) in zip(predictions[i], relations[i]):
+                    rel_to_score[rel].append(pred_score)
+                # rel_to_score = [(rel, np.mean(torch.topk(torch.tensor(scores), 3).values.tolist())) for (rel, scores) in rel_to_score.items()]
+                rel_to_score = [(rel, np.mean(scores)) for (rel, scores) in rel_to_score.items()]
+                max_score    = max(rel_to_score, key=lambda x: x[1])
+                if max_score[1] > threshold:
+                    pred.append(max_score[0])
+                else:
+                    pred.append('no_relation')
+                gold.append(gold_relation)
+            p, r, f1 = tacred_score(gold, pred, verbose=verbose)
+            complete_results[threshold] = [p * 100, r * 100, f1 * 100, f1_score(gold, pred, average='macro', labels=list(set(gold).difference(["no_relation"]))) * 100]
+
+        return complete_results
+
+    def compute_pred_for_threshold(self, predictions, relations, threshold):
+        pred = []
+        for i in range(len(predictions)):
+            rel_to_score = defaultdict(list)
+            for (pred_score, rel) in zip(predictions[i], relations[i]):
+                rel_to_score[rel].append(pred_score)
+            # rel_to_score = [(rel, np.mean(torch.topk(torch.tensor(scores), 3).values.tolist())) for (rel, scores) in rel_to_score.items()]
+            rel_to_score = [(rel, np.mean(scores)) for (rel, scores) in rel_to_score.items()]
+            max_score    = max(rel_to_score, key=lambda x: x[1])
+            if max_score[1] > threshold:
+                pred.append(max_score[0])
+            else:
+                pred.append('no_relation')
+
+        return pred
 
     def run_training_style_validation_step(self, batch, batch_idx):
         output      = self.forward(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], token_type_ids=batch['token_type_ids'])
@@ -561,10 +569,26 @@ if __name__ == '__main__':
     # exit()
     args = vars(get_arg_parser().parse_args())
 
-    # pl_model = PLWrapper.load_from_checkpoint('/home/rvacareanu/projects/temp/clean_repos/rules_softmatch/logs/rule-sentence/version_3/checkpoints/epoch=2-step=3890-val_loss=0.000-f1=8.831-p=4.718-r=68.860-f1=f1_macro=15.265.ckpt')
+    # pl_model = PLWrapper.load_from_checkpoint('/data/logs/rule-sentence-fm/version_3/checkpoints/epoch=2-step=3890-best_f1=18.763-best_thr=0.99000-f1=9.396-p=5.047-r=68.248-f1=f1_macro=15.106.ckpt')
     # pl_model.to(torch.device('cuda'))
     # pl_model.eval()
-    # eval_dataset1  = datasets.load_dataset('json', data_files='/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl', split="train")
+    # pl_model.half()
+    # eval_dataset1  = datasets.load_dataset('json', data_files='/data/datasets/sr/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl', split="train")
+    # eval_dataset2  = datasets.load_dataset('json', data_files='/data/datasets/sr/5_way_5_shots_10K_episodes_3q_seed_160290.jsonl', split="train")
+    # dl_eval11 = DataLoader(eval_dataset1, batch_size=8, collate_fn = lambda x: x, shuffle=False, num_workers=16)
+    # dl_eval12 = DataLoader(eval_dataset2, batch_size=1, collate_fn = lambda x: x, shuffle=False, num_workers=16)
+    # outputs1 = []
+    # outputs2 = []
+    # import tqdm
+    # for batch in tqdm.tqdm(dl_eval11):
+    #     outputs1.append(pl_model.validation_step(batch, None))
+    # complete_results1 = pl_model.compute_results(outputs1, thresholds=np.linspace(0.5, 1.0, 501).tolist())
+    # for batch in tqdm.tqdm(dl_eval12):
+    #     outputs2.append(pl_model.validation_step(batch, None))
+    # complete_results2 = pl_model.compute_results(outputs2, thresholds=np.linspace(0.5, 1.0, 501).tolist())
+    # for batch in tqdm.tqdm(dl_eval12):
+        # outputs2.append(pl_model.validation_step(batch, None))
+    # exit()
     # dl_eval11 = DataLoader(eval_dataset1, batch_size=2, collate_fn = lambda x: x, shuffle=False, num_workers=16)
     # from collections import defaultdict
     # o = []
@@ -609,7 +633,7 @@ if __name__ == '__main__':
     eval_dataset2  = datasets.load_dataset('json', data_files=args['eval_dataset2'], split="train")
     
     dl_train  = DataLoader(train_dataset, batch_size=args['train_batch_size'], shuffle=True, num_workers=32)
-    dl_eval11 = DataLoader(eval_dataset1, batch_size=args['eval_batch_size'], collate_fn = lambda x: x, shuffle=False, num_workers=8)
+    dl_eval11 = DataLoader(eval_dataset1, batch_size=args['eval_batch_size'], collate_fn = lambda x: x, shuffle=False, num_workers=16)
     dl_eval12 = DataLoader(eval_dataset2, batch_size=1, collate_fn = lambda x: x, shuffle=False, num_workers=2)
 
     num_training_steps      = len(dl_train) / accumulate_grad_batches
@@ -633,7 +657,7 @@ if __name__ == '__main__':
         'accelerator'            : 'gpu',
         'devices'                : 1,
         'precision'              : 16,
-        'num_sanity_val_steps'   : 500,
+        'num_sanity_val_steps'   : 50,
         'gradient_clip_val'      : 1.0,
         'gradient_clip_algorithm': "value",
         'logger'                 : logger,
