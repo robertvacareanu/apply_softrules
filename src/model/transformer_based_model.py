@@ -348,15 +348,17 @@ class PLWrapper(pl.LightningModule):
                 # p, r, f1  = tacred_score(gold, pred, verbose=True)
             
             for (threshold, (p, r, f1)) in complete_results.items():
-                self.log(f'f1_{threshold}', f1)
-                self.log(f'p_{threshold}',  p )
-                self.log(f'r_{threshold}',  r )
+                self.log(f'f1_{threshold}', f1, sync_dist=True)
+                self.log(f'p_{threshold}',  p , sync_dist=True)
+                self.log(f'r_{threshold}',  r , sync_dist=True)
 
             (p, r, f1) = complete_results[0.5]
-            self.log(f'f1',        f1      , prog_bar=True)
-            self.log(f'p',         p       , prog_bar=True)
-            self.log(f'r',         r       , prog_bar=True)
-            self.log(f'f1_macro',  f1_macro, prog_bar=True)
+            self.log(f'f1',        f1      , prog_bar=True, sync_dist=True)
+            self.log(f'p',         p       , prog_bar=True, sync_dist=True)
+            self.log(f'r',         r       , prog_bar=True, sync_dist=True)
+            self.log(f'f1_macro',  f1_macro, prog_bar=True, sync_dist=True)
+            self.log(f'best_f1',   max(complete_results.items(), key=lambda x: x[1][2])[1][2], sync_dist=True)
+            self.log(f'best_thr',  max(complete_results.items(), key=lambda x: x[1][2])[0], sync_dist=True)
 
             return {'f1': f1 * 100, 'p': p * 100, 'r': r * 100}
         elif self.hyperparameters['validation_style'] == 'training_style':
