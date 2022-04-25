@@ -530,7 +530,7 @@ def get_arg_parser():
     extra_tokens_default  = ['misc', 'criminal_charge', 'cause_of_death', 'url', 'state_or_province']
     train_dataset_default = '/data/nlp/corpora/softrules/tacred_fewshot/train/hf_datasets/rules_sentences_pair/train_large.jsonl'
     eval_dataset1_default = '/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl'
-    eval_dataset2_default = '/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl'
+    eval_dataset2_default = '/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_5_shots_10K_episodes_3q_seed_160290.jsonl'
 
     parser = argparse.ArgumentParser(description='CLI Parameters for the (Rule, Sentence) scorer', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--learning_rate',             type=float,                         default=3e-5,                                help='learning rate')
