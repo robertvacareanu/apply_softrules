@@ -1,0 +1,10 @@
+rules_path      : "softrules/tacred/processed/train_rules"
+rules_save_path : "softrules/tacred/processed/train_rules_expanded"
+max_rule_length : 5
+word_similarity : 0.9
+faiss_index     : 
+  index_path          : "softrules/faiss_index/glove.6B.50d_index"
+  vocab_path          : "softrules/faiss_index/glove.6B.50d_vocab"
+  total_random_indices: 100000
+similarity_threshold: 0.8
+expansion_number    : 10

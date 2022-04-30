@@ -130,4 +130,7 @@ class WordRuleExpander:
 if __name__ == "__main__":
     wre = WordRuleExpander("/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_index", "/data/nlp/corpora/softrules/faiss_index/glove.6B.50d_vocab", total_random_indices=100000)
     # print(wre.replace_word(parse_surface("[word=city] [word=of] [word=Tucson]"), 'city', 'town'))
-    print(wre.rule_expander(Rule(None, "[word=city] [word=of] [word=Tucson]", None, "city"), 0.9))
+    for er in wre.rule_expander(Rule(None, "[word=city] [word=of] [word=Tucson]", None, "city"), 0.8):
+        print(er)
+
+
