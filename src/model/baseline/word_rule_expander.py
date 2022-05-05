@@ -87,7 +87,9 @@ class WordRuleExpander:
 
         rule_str = ' '.join(rule.rule)
         # print([re for re in rule_expansions if re != rule_str])
-        result = [re[0] for re in rule_expansions if re != rule_str][:k]
+        rules  = [re[0] for re in rule_expansions if re != rule_str]
+        random.shuffle(rules)
+        result = rules[:k]
 
         result = [Rule(rule.entity1, re, rule.entity2, rule.relation) for re in result]
 
