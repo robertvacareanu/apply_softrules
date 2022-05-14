@@ -68,3 +68,18 @@ def from_dict_to_s(s_dict: Dict, **kwargs) -> Sentence:
         subj_type  = kwargs.get('subj_type', s_dict['subj_type']),
         obj_type   = kwargs.get('obj_type', s_dict['obj_type']),
     )
+    
+
+# Read the data in the reldict format
+# Example of such a file: '/data/nlp/corpora/fs-tacred/few-shot-dev/_train_data.json'
+def read_reldict_data(path: str) -> List[Sentence]:
+    with open(path) as fin:
+        data = json.load(fin)
+
+    output = []
+    for key in data:
+        for s_dict in data[key]:
+            output.append(from_dict_to_s(s_dict))
+
+    return output
+
