@@ -12,7 +12,7 @@ from transformers import BertModel, BertConfig, AdamW, AutoModel, AutoTokenizer
 from transformers import get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup
 from transformers import BertTokenizerFast
 from typing import Any, Dict, List, Optional, Tuple, Union
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
 from collections import defaultdict, namedtuple
 from dataclasses import asdict, dataclass, make_dataclass
 from src.model.util import tokenize_words_and_align_labels
@@ -313,16 +313,17 @@ class PLWrapper(pl.LightningModule):
                 # pickle.dump(complete_results, fout, protocol=pickle.HIGHEST_PROTOCOL)
             # print(complete_results)
             # exit()
-            for (threshold, (p, r, f1, f1_macro)) in complete_results.items():
+            for (threshold, (p, r, f1, f1_macro, acc)) in complete_results.items():
                 self.log(f'f1_{threshold}', f1, sync_dist=True)
                 self.log(f'p_{threshold}',  p , sync_dist=True)
                 self.log(f'r_{threshold}',  r , sync_dist=True)
 
-            (p, r, f1, f1_macro) = complete_results[0.5]
+            (p, r, f1, f1_macro, acc) = complete_results[0.5]
             self.log(f'f1',        f1      , prog_bar=True, sync_dist=True)
             self.log(f'p',         p       , prog_bar=True, sync_dist=True)
             self.log(f'r',         r       , prog_bar=True, sync_dist=True)
             self.log(f'f1_macro',  f1_macro, prog_bar=True, sync_dist=True)
+            self.log(f'acc',       acc     , prog_bar=True, sync_dist=True)
             self.log(f'best_f1',   max(complete_results.items(), key=lambda x: x[1][2])[1][2], sync_dist=True, prog_bar=True)
             self.log(f'best_thr',  max(complete_results.items(), key=lambda x: x[1][2])[0], sync_dist=True, prog_bar=True)
 
@@ -357,14 +358,17 @@ class PLWrapper(pl.LightningModule):
                     rel_to_score[rel].append(pred_score)
                 # rel_to_score = [(rel, np.mean(torch.topk(torch.tensor(scores), 3).values.tolist())) for (rel, scores) in rel_to_score.items()]
                 rel_to_score = [(rel, np.mean(scores)) for (rel, scores) in rel_to_score.items()]
-                max_score    = max(rel_to_score, key=lambda x: x[1])
-                if max_score[1] > threshold:
-                    pred.append(max_score[0])
+                if len(rel_to_score) == 0:
+                    pred.append("no_relation")
                 else:
-                    pred.append('no_relation')
+                    max_score    = max(rel_to_score, key=lambda x: x[1])
+                    if max_score[1] > threshold:
+                        pred.append(max_score[0])
+                    else:
+                        pred.append('no_relation')
                 gold.append(gold_relation)
             p, r, f1 = tacred_score(gold, pred, verbose=verbose)
-            complete_results[threshold] = [p * 100, r * 100, f1 * 100, f1_score(gold, pred, average='macro', labels=list(set(gold).difference(["no_relation"]))) * 100]
+            complete_results[threshold] = [p * 100, r * 100, f1 * 100, f1_score(gold, pred, average='macro', labels=list(set(gold).difference(["no_relation"]))) * 100, accuracy_score(gold, pred) * 100]
 
         return complete_results
 
@@ -376,11 +380,14 @@ class PLWrapper(pl.LightningModule):
                 rel_to_score[rel].append(pred_score)
             # rel_to_score = [(rel, np.mean(torch.topk(torch.tensor(scores), 3).values.tolist())) for (rel, scores) in rel_to_score.items()]
             rel_to_score = [(rel, np.mean(scores)) for (rel, scores) in rel_to_score.items()]
-            max_score    = max(rel_to_score, key=lambda x: x[1])
-            if max_score[1] > threshold:
-                pred.append(max_score[0])
+            if len(rel_to_score) == 0:
+                pred.append("no_relation")
             else:
-                pred.append('no_relation')
+                max_score    = max(rel_to_score, key=lambda x: x[1])
+                if max_score[1] > threshold:
+                    pred.append(max_score[0])
+                else:
+                    pred.append('no_relation')
 
         return pred
 
@@ -528,9 +535,9 @@ def get_arg_parser():
     from distutils.util import strtobool
 
     extra_tokens_default  = ['misc', 'criminal_charge', 'cause_of_death', 'url', 'state_or_province']
-    train_dataset_default = '/data/nlp/corpora/softrules/tacred_fewshot/train/hf_datasets/rules_sentences_pair/train_large.jsonl'
-    eval_dataset1_default = '/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290.jsonl'
-    eval_dataset2_default = '/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/5_way_5_shots_10K_episodes_3q_seed_160290.jsonl'
+    train_dataset_default = '/data/nlp/corpora/softrules/fewrel/train/hf_datasets/rules_sentences_pair/train_large2.jsonl'
+    eval_dataset1_default = '/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/val_5_way_1_shots_10K_episodes_1q_seed_1_na_05_inbetweenentities.jsonl'
+    eval_dataset2_default = '/data/nlp/corpora/softrules/tacred_fewshot/dev/hf_datasets/val_5_way_5_shots_10K_episodes_1q_seed_1_na_05_inbetweenentities.jsonl'
 
     parser = argparse.ArgumentParser(description='CLI Parameters for the (Rule, Sentence) scorer', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--learning_rate',             type=float,                         default=3e-5,                                help='learning rate')
@@ -566,7 +573,6 @@ if __name__ == '__main__':
     from src.model.util import init_random
     from src.model.util import prepare_train_features_with_start_end
     init_random(1)
-    # exit()
     args = vars(get_arg_parser().parse_args())
 
     # pl_model = PLWrapper.load_from_checkpoint('/data/logs/rule-sentence-fm/version_3/checkpoints/epoch=2-step=3890-best_f1=18.763-best_thr=0.99000-f1=9.396-p=5.047-r=68.248-f1=f1_macro=15.106.ckpt')
@@ -622,7 +628,8 @@ if __name__ == '__main__':
 
     (_, tokenizer) = get_bertlike_model_with_customs(model_name, extra_tokens)
 
-    train_dataset = datasets.load_dataset('json', data_files=args['train_dataset']).map(lambda examples: prepare_train(examples, tokenizer, max_seq_length=300), batched=True)['train']
+    train_dataset = datasets.load_dataset('json', data_files=args['train_dataset']).map(lambda examples: prepare_train(examples, tokenizer, max_seq_length=200), batched=True)['train']
+    print(train_dataset[0])
     train_dataset.set_format(type='torch', columns=[
         'input_ids_gr1_gs', 'attention_mask_gr1_gs', 'token_type_ids_gr1_gs', 'tags_gr1_gs',
         'input_ids_gr2_gs', 'attention_mask_gr2_gs', 'token_type_ids_gr2_gs', 'tags_gr2_gs',
@@ -631,7 +638,10 @@ if __name__ == '__main__':
 
     eval_dataset1  = datasets.load_dataset('json', data_files=args['eval_dataset1'], split="train")
     eval_dataset2  = datasets.load_dataset('json', data_files=args['eval_dataset2'], split="train")
-    
+
+    print(eval_dataset1[0])
+    print(eval_dataset2[0])
+
     dl_train  = DataLoader(train_dataset, batch_size=args['train_batch_size'], shuffle=True, num_workers=32)
     dl_eval11 = DataLoader(eval_dataset1, batch_size=args['eval_batch_size'], collate_fn = lambda x: x, shuffle=False, num_workers=16)
     dl_eval12 = DataLoader(eval_dataset2, batch_size=1, collate_fn = lambda x: x, shuffle=False, num_workers=2)
@@ -650,7 +660,21 @@ if __name__ == '__main__':
     }
     print(params)
     pl_model           = PLWrapper(params)
+    
+    # pl_model           = PLWrapper.load_from_checkpoint('/data/logs/rule-sentence-fm-temp/version_3/checkpoints/epoch=0-step=5186-best_f1=17.699-best_thr=0.99000-f1=8.329-p=4.432-r=68.860-f1=f1_macro=13.963.ckpt')
     # o                  = ntsb(**tokenizer("This is a test", return_tensors='pt'))
+    # exit()
+    # outputs1 = []
+    # outputs2 = []
+    # import tqdm
+    # for batch in tqdm.tqdm(dl_eval11):
+    #     outputs1.append(pl_model.validation_step(batch, None))
+    # for batch in tqdm.tqdm(dl_eval12):
+    #     outputs2.append(pl_model.validation_step(batch, None))
+    # complete_results1 = pl_model.compute_results(outputs1, thresholds=np.linspace(0.1, 1.0, 901).tolist())
+    # complete_results2 = pl_model.compute_results(outputs2, thresholds=np.linspace(0.1, 1.0, 901).tolist())
+    # exit()
+    
     logger = TensorBoardLogger('/data/logs/', name=args['log_save_name'])
     trainer_params = {
         'max_epochs'             : max_epochs,
@@ -674,3 +698,95 @@ if __name__ == '__main__':
     trainer.fit(pl_model, train_dataloaders = dl_train, val_dataloaders = dl_eval11)
     # trainer.test(model=pl_model, dataloaders=dl_eval11)
     # trainer.test(model=pl_model, dataloaders=dl_eval12)
+
+
+
+
+
+"""
+
+import tqdm
+import pickle
+# with open('/home/rvacareanu/projects/temp/clean_repos/rules_softmatch/zzzzzzzzzzzzzz_nc.pickle', 'rb') as fin:
+    # nc = pickle.load(fin)
+with open('/home/rvacareanu/projects/temp/clean_repos/rules_softmatch/zzzzzzzzzz_nc_test_160290_1shots', 'r') as fin:
+    nc = [x.strip() for x in fin.readlines()]
+
+model = PLWrapper.load_from_checkpoint('/data/logs/rule-sentence/version_7/checkpoints/epoch=3-step=26511-best_f1=19.506-best_thr=0.99000-f1=9.048-p=4.824-r=72.738-f1=f1_macro=15.280.ckpt')
+model.to(torch.device('cuda'))
+eval_dataset1_default = '/data/nlp/corpora/softrules/tacred_fewshot/test/hf_datasets/5_way_1_shots_10K_episodes_3q_seed_160290_inbetweenentities_inbetweenentities.jsonl'
+eval_dataset2_default = '/data/nlp/corpora/softrules/tacred_fewshot/test/hf_datasets/5_way_5_shots_10K_episodes_3q_seed_160290_inbetweenentities_inbetweenentities.jsonl'
+
+eval_dataset1  = datasets.load_dataset('json', data_files=eval_dataset1_default, split="train").filter(lambda x: len(x['rules']) > 0)
+eval_dataset2  = datasets.load_dataset('json', data_files=eval_dataset2_default, split="train")
+
+gold_no_rules = datasets.load_dataset('json', data_files=eval_dataset1_default, split="train").filter(lambda x: len(x['rules']) == 0)['gold_relation']
+
+dl_eval11 = DataLoader(eval_dataset1, batch_size=1, collate_fn = lambda x: x, shuffle=False, num_workers=16)
+dl_eval12 = DataLoader(eval_dataset2, batch_size=1, collate_fn = lambda x: x, shuffle=False, num_workers=2)
+
+outputs11 = []
+outputs12 = []
+
+
+with torch.no_grad():
+    for batch in tqdm.tqdm(dl_eval11):
+        outputs11.append(model.run_fewshot_episode_style_validation_step(batch, None))
+    # for batch in tqdm.tqdm(dl_eval12):
+        # outputs12.append(model.run_fewshot_episode_style_validation_step(batch, None))
+
+relations11      = [y for x in outputs11 for y in x['relations']]
+predictions11    = [y for x in outputs11 for y in x['predictions']]
+gold_relations11 = [y for x in outputs11 for y in x['gold']]
+relations12      = [y for x in outputs12 for y in x['relations']]
+predictions12    = [y for x in outputs12 for y in x['predictions']]
+gold_relations12 = [y for x in outputs12 for y in x['gold']]
+threshold = 0.99
+verbose=True
+
+thresholds = [0.5, 0.6, 0.7, 0.8, 0.9, 0.925, 0.95, 0.99, 0.999]
+for threshold in thresholds:
+    pred = ['no_relation' for i in gold_no_rules]
+    gold = [i for i in gold_no_rules]
+    print('------------------------------------------')
+    print(f'THRESHOLD: {threshold}\n\n')
+    for (i, gold_relation) in enumerate(gold_relations12):
+        rel_to_score = defaultdict(list)
+        for (pred_score, rel) in zip(predictions12[i], relations12[i]):
+            rel_to_score[rel].append(pred_score)
+        # rel_to_score = [(rel, np.mean(torch.topk(torch.tensor(scores), 3).values.tolist())) for (rel, scores) in rel_to_score.items()]
+        rel_to_score = [(rel, np.mean(scores)) for (rel, scores) in rel_to_score.items()]
+        if len(rel_to_score) == 0:
+            pred.append("no_relation")
+        else:
+            max_score    = max(rel_to_score, key=lambda x: x[1])
+            if max_score[1] > threshold:
+                pred.append(max_score[0])
+            else:
+                pred.append('no_relation')
+        gold.append(gold_relation)
+    merged = []
+    for nco, p in zip(nc, pred):
+        if nco == 'no_relation':
+            merged.append(nco)
+        else:
+            merged.append(p)
+    print("############################")
+    print("My original implementation: \n")
+    p, r, f1 = tacred_score(gold, pred, verbose=verbose)
+    f1_macro = f1_score(gold, pred, average='macro', labels=list(set(gold).difference(["no_relation"])))
+    print(f'F1 Macro: {f1_macro}')
+    print("\n\n")
+    print("Using no relation classifier: \n")
+    p, r, f1 = tacred_score(gold, merged, verbose=verbose)
+    f1_macro = f1_score(gold, merged, average='macro', labels=list(set(gold).difference(["no_relation"])))
+    print(f'F1 Macro: {f1_macro}')
+    print("############################")
+    print('------------------------------------------\n\n\n\n')
+
+
+
+
+
+
+"""
